@@ -12,5 +12,10 @@ export component ConnectingView inherits Rectangle {
         LoadingView {
             label: "Connecting";
         }
+
+        DestructiveButton {
+            label: "Cancel";
+            clicked => { Bridge.stop-casting(); }
+        }
     }
 }
