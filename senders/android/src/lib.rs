@@ -583,7 +583,9 @@ impl Application {
 
     async fn stop_cast(&mut self, stop_playback: bool) -> Result<()> {
         let android_app = self.android_app.clone();
-        self.ui_weak.upgrade_in_event_loop(move |_| {
+        self.ui_weak.upgrade_in_event_loop(move |ui| {
+            ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
+            ui.global::<Bridge>().invoke_change_state(AppState::Disconnected);
             call_java_method_no_args(&android_app, JavaMethod::StopCapture);
         })?;
 
@@ -638,12 +640,6 @@ impl Application {
 
         match event {
             Event::EndSession { .. } => {
-                self.ui_weak.upgrade_in_event_loop(|ui| {
-                    ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
-                    ui.global::<Bridge>()
-                        .invoke_change_state(AppState::Disconnected);
-                })?;
-
                 self.stop_cast(true).await?;
             }
             Event::ConnectToDevice(device_name) => {
@@ -735,6 +731,13 @@ impl Application {
                                                 ?new_source,
                                                 "The source on the receiver changed, disconnecting"
                                             );
+
+                                            self.ui_weak.upgrade_in_event_loop(|ui| {
+                                                ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
+                                                ui.global::<Bridge>()
+                                                    .invoke_change_state(AppState::Disconnected);
+                                            })?;
+
                                             self.stop_cast(false).await?;
                                         }
                                     }
@@ -753,12 +756,6 @@ impl Application {
             #[cfg(target_os = "android")]
             Event::CaptureCancelled => {
                 set_capture_active(false);
-                self.ui_weak.upgrade_in_event_loop(|ui| {
-                    ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
-                    ui.global::<Bridge>()
-                        .invoke_change_state(AppState::Disconnected);
-                })?;
-
                 self.stop_cast(false).await?;
             }
             #[cfg(target_os = "android")]
