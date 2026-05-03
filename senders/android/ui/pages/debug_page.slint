@@ -14,11 +14,12 @@
 
 import { VerticalBox, Button, ScrollView } from "std-widgets.slint";
 import { Bridge } from "../bridge.slint";
+import { Theme } from "../theme.slint";
 
 export component DebugPage inherits VerticalBox {
     Text {
         horizontal-alignment: center;
-        font-size: 12px;
+        font-size: Theme.font-size-label;
         text: "Migrated server tests";
     }
 
@@ -47,6 +48,7 @@ export component DebugPage inherits VerticalBox {
     // which is equivalent to the original `parent.width` that referred to the
     // outer VerticalBox in ConnectView.
     ScrollView {
+        // Intrinsic test-log height; not tokenized (Phase 2-H).
         height: 100px;
         viewport-width: root.width;
         viewport-height: status-text.preferred-height;
