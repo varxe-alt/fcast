@@ -13,10 +13,11 @@
 //   ui/pages/ → ui/ → senders/android/ → senders/ → fcast/   (4 levels up)
 //   then: sdk/mirroring_core/ui/common.slint
 
-import { VerticalBox, Button } from "std-widgets.slint";
+import { VerticalBox } from "std-widgets.slint";
 import { Utils, VideoResolutionPicker, FrameratePicker } from "../../../../sdk/mirroring_core/ui/common.slint";
 import { Bridge } from "../bridge.slint";
 import { Theme } from "../theme.slint";
+import { PrimaryButton, DestructiveButton } from "../components/buttons.slint";
 
 export component SettingsPageView inherits Rectangle {
     property <int> video-resolution-idx: 2;
@@ -43,17 +44,17 @@ export component SettingsPageView inherits Rectangle {
             current-index <=> video-framerate-idx;
         }
 
-        Button {
-            text: "Start";
+        PrimaryButton {
+            label: "Start";
             clicked => {
                 let scale = Utils.str-to-scale(video-resolution-idx);
                 Bridge.start-casting(scale.width, scale.height, Utils.video-framerates[video-framerate-idx].to-float())
             }
         }
 
-        Button {
-            text: "Disconnect";
-            clicked => Bridge.stop-casting();
+        DestructiveButton {
+            label: "Disconnect";
+            clicked => { Bridge.stop-casting(); }
         }
     }
 }

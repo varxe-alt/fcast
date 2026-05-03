@@ -10,6 +10,7 @@ import { VerticalBox, ListView } from "std-widgets.slint";
 import { Bridge } from "../bridge.slint";
 import { DebugPage } from "debug_page.slint";
 import { Theme } from "../theme.slint";
+import { PrimaryButton } from "../components/buttons.slint";
 
 export component ConnectView inherits Rectangle {
     VerticalBox {
@@ -58,24 +59,9 @@ export component ConnectView inherits Rectangle {
         }
 
         // ── Scan QR button ────────────────────────────────────────────────
-        Rectangle {
-            height: Theme.row-height;
-
-            scan_ta := TouchArea {
-                clicked => Bridge.scan-qr();
-            }
-
-            Rectangle {
-                width: parent.width - 10px;
-                height: parent.height - 10px;
-                background: scan_ta.pressed ? Theme.accent-pressed : Theme.accent-muted;
-                border-radius: Theme.radius-card;
-                Text {
-                    vertical-alignment: center;
-                    horizontal-alignment: left;
-                    text: "Scan QR";
-                }
-            }
+        PrimaryButton {
+            label: "Scan QR";
+            clicked => { Bridge.scan-qr(); }
         }
 
         // ── Debug panel (conditionally visible) ───────────────────────────

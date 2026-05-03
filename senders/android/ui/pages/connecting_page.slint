@@ -2,27 +2,20 @@
 // Shown when AppState == Connecting.
 // Extracted verbatim from main.slint.
 
-import { VerticalBox, Button, Spinner } from "std-widgets.slint";
+import { VerticalBox } from "std-widgets.slint";
 import { Bridge } from "../bridge.slint";
 import { Theme } from "../theme.slint";
+import { LoadingView, DestructiveButton } from "../components/buttons.slint";
 
 export component ConnectingView inherits Rectangle {
     VerticalBox {
-        Spinner {
-            indeterminate: true;
-            width: 48px;
-            height: 48px;
+        LoadingView {
+            label: "Connecting";
         }
 
-        Text {
-            font-size: Theme.font-size-body;
-            vertical-alignment: center;
-            text: "Connecting";
-        }
-
-        Button {
-            text: "Cancel";
-            clicked => Bridge.stop-casting();
+        DestructiveButton {
+            label: "Cancel";
+            clicked => { Bridge.stop-casting(); }
         }
     }
 }
