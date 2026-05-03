@@ -54,7 +54,7 @@ impl AndroidArgs {
                 cmd!(sh, "{ANDROID_SDK_PATH}/cmdline-tools/bin/sdkmanager --sdk_root={ANDROID_HOME_PATH} --install build-tools;35.0.0").run()?;
             }
             AndroidCommand::DownloadGstreamer => {
-                cmd!(sh, "curl -L -A \"Mozilla/5.0 (Windows NT 10.0; Win64; x64)\" {GST_ANDROID_URL} -o {GST_ANDROID_AR_PATH}").run()?;
+                cmd!(sh, "wget {GST_ANDROID_URL} -O {GST_ANDROID_AR_PATH}").run()?;
                 sh.create_dir(GST_ANDROID_PATH)?;
                 cmd!(sh, "tar -xf {GST_ANDROID_AR_PATH} -C {GST_ANDROID_PATH}").run()?;
                 sh.remove_path(GST_ANDROID_AR_PATH)?;
