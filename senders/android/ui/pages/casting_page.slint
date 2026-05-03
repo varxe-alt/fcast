@@ -7,28 +7,22 @@
 // Phase 5 will add StatusOverlay as a ZStack layer on top of CastingView.
 // Phase 4 will refine the CastButton state machine here.
 
-import { VerticalBox, Button, Spinner } from "std-widgets.slint";
+import { VerticalBox } from "std-widgets.slint";
 import { Bridge } from "../bridge.slint";
 import { Theme } from "../theme.slint";
+import { LoadingView, DestructiveButton } from "../components/buttons.slint";
 
 // ── WaitingForMediaView ───────────────────────────────────────────────────────
 
 export component WaitingForMediaView inherits Rectangle {
     VerticalBox {
-        Spinner {
-            indeterminate: true;
-            width: 48px;
-            height: 48px;
+        LoadingView {
+            label: "Waiting for media";
         }
 
-        Text {
-            horizontal-alignment: center;
-            text: "Waiting for media";
-        }
-
-        Button {
-            text: "Cancel";
-            clicked => Bridge.stop-casting();
+        DestructiveButton {
+            label: "Cancel";
+            clicked => { Bridge.stop-casting(); }
         }
     }
 }
@@ -42,9 +36,9 @@ export component CastingView inherits Rectangle {
             text: "Casting";
         }
 
-        Button {
-            text: "Stop";
-            clicked => Bridge.stop-casting();
+        DestructiveButton {
+            label: "Stop";
+            clicked => { Bridge.stop-casting(); }
         }
     }
 }
