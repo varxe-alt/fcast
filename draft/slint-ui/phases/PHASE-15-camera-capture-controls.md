@@ -124,6 +124,44 @@ so that when Rust capability lands, only the binding source changes.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/Camera/CameraSettingsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/Camera/CameraSettingsView.swift (excerpt)
+Form {
+    Section {
+        Picker("Position", selection: $stream.cameraPosition) {
+            ForEach(SettingsCameraPosition.allCases, id: \.self) { Text($0.toString()) }
+        }
+        Picker("Resolution", selection: $stream.resolution) {
+            ForEach(supportedResolutions, id: \.self) { Text($0.toString()) }
+        }
+        Picker("FPS", selection: $stream.fps) {
+            ForEach(supportedFps, id: \.self) { Text("\($0)") }
+        }
+    }
+    Section {
+        Toggle("Mirror front camera", isOn: $database.color.frontCameraMirrored)
+        Toggle("Stabilization", isOn: $stream.videoStabilization)
+    }
+}
+```
+
+**Mapping notes:**
+
+Camera position / resolution / FPS pickers map to three `SettingsValueRow`
+cyclers driven by inline option arrays. Mirror & stabilization toggles map
+1:1 to `SettingsToggleRow`. The capture preview rectangle from Phase 12 sits
+above this form so the user sees the source they're configuring.
+
+**Relevant Slint docs:**
+- [ComboBox](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/combobox.mdx)
+
 ## Slint best practices applied here
 
 - **Internal `PresetChip` component + a model-driven `for` loop** keeps the

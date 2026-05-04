@@ -118,6 +118,38 @@ asynchronously, requires `Bridge.log-events` model + `tracing-subscriber` layer.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/Debug/DebugLogSettingsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/Debug/DebugLogSettingsView.swift (excerpt)
+Form {
+    Section {
+        ForEach(model.debugLog, id: \.self) { line in
+            Text(line).font(.system(size: 11, design: .monospaced))
+        }
+    }
+    .listRowBackground(Color.black)
+    .foregroundColor(.green)
+}
+```
+
+**Mapping notes:**
+
+A monospace log viewer. In Slint a `ListView` (for virtualization since
+logs can be 10k+ lines) of `Text { font-family: "monospace"; }` rows.
+Severity color comes from a regex match against the line content
+(parsed in the placeholder by inspecting the first character: `E` →
+red, `W` → orange, default → green).
+
+**Relevant Slint docs:**
+- [ListView](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/listview.mdx)
+- [font-family](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/elements/text.mdx)
+
 ## Slint best practices applied here
 
 - **`ListView` for the log, not `ScrollView`** — log content can grow without

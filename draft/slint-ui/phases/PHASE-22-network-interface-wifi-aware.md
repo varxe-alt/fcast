@@ -102,6 +102,37 @@ blocked on Rust capability.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/NetworkInterfaceNames/NetworkInterfaceNamesSettingsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/NetworkInterfaceNames/NetworkInterfaceNamesSettingsView.swift (excerpt)
+Form {
+    Section {
+        ForEach(database.networkInterfaceNames) { iface in
+            HStack {
+                TextField("Friendly name", text: $iface.name)
+                Spacer()
+                Text(iface.ip).foregroundColor(.secondary)
+            }
+        }
+    }
+}
+```
+
+**Mapping notes:**
+
+A friendly-name editor for each network interface. In Slint each row is
+`HorizontalLayout { LineEdit; Text /* IP */; }`. Wi-Fi Aware (Android NAN)
+is a separate panel — placeholder shows the toggle + 0 peers detected.
+
+**Relevant Slint docs:**
+- [LineEdit](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/lineedit.mdx)
+
 ## Slint best practices applied here
 
 - **Expander pattern via local boolean property** — each row stores its own

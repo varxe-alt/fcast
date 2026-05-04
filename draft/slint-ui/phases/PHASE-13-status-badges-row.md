@@ -135,6 +135,38 @@ Mirrors Moblin's top-of-bar status strip but without any device API access.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/ControlBar/StatusBarView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/ControlBar/StatusBarView.swift (excerpt)
+HStack {
+    BatteryView(level: model.battery.level, charging: model.battery.charging)
+    ThermalView(state: model.thermal.state)
+    NetworkSignalView(level: model.network.signalLevel)
+    if model.audio.muted { Image(systemName: "mic.slash.fill") }
+}
+.padding(.horizontal, 8)
+.background(.black.opacity(0.5))
+.clipShape(Capsule())
+```
+
+**Mapping notes:**
+
+SwiftUI's `HStack` with conditional `Image` icons collapses neatly to a
+Slint `HorizontalLayout` of `Badge` components. The capsule background uses
+`border-radius: self.height / 2` on the outer `Rectangle`. Each badge is
+gated by `if root.mock-<flag>:` rather than a `visible:` property so unused
+badges aren't even instantiated.
+
+**Relevant Slint docs:**
+- [HorizontalLayout](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/layouts/horizontalbox.mdx)
+- [Conditional elements](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/component.mdx)
+
 ## Slint best practices applied here
 
 - **Internal `component Badge` + exported `StatusBadgesRow`.** Keeping

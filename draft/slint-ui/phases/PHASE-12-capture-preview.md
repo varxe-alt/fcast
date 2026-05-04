@@ -107,6 +107,39 @@ screen/audio source. Real GStreamer frame data is parked in `futures/`.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Stream/StreamView.swift`
+- `View/Stream/Overlay/StreamOverlayView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Stream/StreamView.swift (excerpt)
+ZStack {
+    if let preview = model.streamPreview {
+        Image(uiImage: preview)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+    } else {
+        Color.black.overlay(Text("No preview").foregroundColor(.white))
+    }
+    StreamOverlayView(...)
+}
+```
+
+**Mapping notes:**
+
+The SwiftUI `ZStack` with a fallback `Color.black.overlay(Text(…))` translates
+to a Slint `Rectangle { background: black; ... if has-image: Image {} }`. The
+`mock-active`/`mock-source-label` properties stand in for `model.streamPreview`
+until Phase 8 (deferred) wires a `Bridge.preview-image: image` source.
+
+**Relevant Slint docs:**
+- [Image element](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/elements/image.mdx)
+- [Rectangle clip](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/elements/rectangle.mdx)
+
 ## Slint best practices applied here
 
 - **Plain `Rectangle` + nested `VerticalLayout`** is the cheapest possible

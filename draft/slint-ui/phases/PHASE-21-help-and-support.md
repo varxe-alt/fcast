@@ -111,6 +111,34 @@
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/HelpAndSupport/HelpAndSupportSettingsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/HelpAndSupport/HelpAndSupportSettingsView.swift (excerpt)
+Form {
+    Section {
+        Link(destination: URL(string: "https://moblin.app")!) { Text("Website") }
+        Link(destination: URL(string: "https://github.com/eerimoq/moblin")!) { Text("Source code") }
+    }
+    Section { Text("Version \(applicationVersion)") }
+}
+```
+
+**Mapping notes:**
+
+Slint has no `Link` element — links are rendered as `TextButton`s whose
+`clicked` callback fires a Bridge callback (`open-url(string)`) in Phase 8.
+For the placeholder, the rows just show the URL as a label and the click
+is a no-op. Version reads from a static `mock-app-version: string`.
+
+**Relevant Slint docs:**
+- [Text element](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/elements/text.mdx)
+
 ## Slint best practices applied here
 
 - **Done button writes `Panel.about` (not `Panel.none`)** for sub-pages so

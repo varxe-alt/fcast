@@ -91,6 +91,34 @@ replaced wholesale on each "save"; no persistence.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/ControlBar/QuickButtonsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/ControlBar/QuickButtonsView.swift (excerpt — reorder)
+List {
+    ForEach(database.quickButtons) { button in
+        Toggle(button.label, isOn: $button.enabled)
+    }
+    .onMove { from, to in database.quickButtons.move(fromOffsets: from, toOffset: to) }
+}
+```
+
+**Mapping notes:**
+
+The order of action cards in the Cast Control Bar is editable on a
+"Customize quick actions" page. Each row shows the action label, an
+enabled toggle, and ▲/▼ reorder buttons. Reorder mutates
+`mock-quick-actions` via `[...].swap(i, j)`-style operations expressed
+as new array literals.
+
+**Relevant Slint docs:**
+- [ListView reorder pattern](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/listview.mdx)
+
 ## Slint best practices applied here
 
 - **Up/down arrow reorder is the simplest model mutation pattern.** Real

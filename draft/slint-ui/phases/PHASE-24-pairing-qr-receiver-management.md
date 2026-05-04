@@ -115,6 +115,37 @@
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Utils/QrCodeImageView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Utils/QrCodeImageView.swift (excerpt)
+struct QrCodeImageView: View {
+    let payload: String
+    var body: some View {
+        Image(uiImage: makeQrCode(payload))
+            .interpolation(.none)
+            .resizable()
+            .aspectRatio(1, contentMode: .fit)
+    }
+}
+```
+
+**Mapping notes:**
+
+Slint has no built-in QR code element. The placeholder renders a black
+rectangle with a white grid (`for x in 21: for y in 21: Rectangle {...}`)
+plus a centered text label "(QR code preview)". Real QR rendering wires
+through Rust (using a crate like `qrcode`) in Phase 8.
+
+**Relevant Slint docs:**
+- [for / repeated elements](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/repetition.mdx)
+- [Image element (for real QR)](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/elements/image.mdx)
+
 ## Slint best practices applied here
 
 - **A page-level `selected-receiver-id` property** drives the contextual menu

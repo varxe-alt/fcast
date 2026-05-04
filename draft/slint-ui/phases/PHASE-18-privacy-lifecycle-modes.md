@@ -122,6 +122,36 @@
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/Lock/LockSettingsView.swift`
+- `View/Settings/StealthMode/StealthModeSettingsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/Lock/LockSettingsView.swift (excerpt)
+Form {
+    Section { Toggle("Require unlock to start cast", isOn: $lock.enabled) }
+    Section { Toggle("Stealth mode (hide cast UI)", isOn: $stealth.enabled) }
+    Section { Slider(value: $snapshot.countdownSeconds, in: 0...10) }
+}
+```
+
+**Mapping notes:**
+
+Lock / stealth / snapshot-countdown each become a `SettingsToggleRow` or
+`SettingsSliderRow` on a single page. The UI is intentionally minimal —
+each mode is just a flag on the bridge. Stealth mode visually demonstrates
+itself by dimming the entire `MainWindow` content via a `Rectangle {
+background: black; opacity: <stealth-active ? 1 : 0>; }` overlay during
+the placeholder demo.
+
+**Relevant Slint docs:**
+- [Slider](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/slider.mdx)
+- [Switch](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/switch.mdx)
+
 ## Slint best practices applied here
 
 - **`Timer { interval: 1s; running: ...; triggered => ... }`** is the

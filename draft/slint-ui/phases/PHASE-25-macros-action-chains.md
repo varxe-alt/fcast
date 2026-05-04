@@ -123,6 +123,37 @@
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/Macros/MacrosSettingsView.swift`
+- `View/ControlBar/QuickButton/QuickButtonMacrosView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/Macros/MacrosSettingsView.swift (excerpt)
+Form {
+    Section {
+        ForEach(database.macros) { macro in
+            NavigationLink { MacroEditView(macro: macro) } label: {
+                Toggle(macro.name, isOn: $macro.enabled)
+            }
+        }
+    }
+}
+```
+
+**Mapping notes:**
+
+A list of saved macros, each editable as an ordered list of action steps.
+Per-macro editor uses the same drag-handle / reorder pattern from Phase
+16/17 (▲/▼ buttons). Each step row is a `SettingsValueRow` cycling
+through known action IDs (toggle-cast / scan-qr / start-recording / etc).
+
+**Relevant Slint docs:**
+- [for index in array](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/repetition.mdx)
+
 ## Slint best practices applied here
 
 - **Two-page list/edit pattern** mirrors Phase 16's bitrate presets — keep

@@ -99,6 +99,43 @@ property updates.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/BitratePresets/BitratePresetsSettingsView.swift`
+- `View/Settings/BitratePresets/BitratePresetsPresetSettingsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/BitratePresets/BitratePresetsSettingsView.swift (excerpt)
+Form {
+    Section {
+        List {
+            ForEach(database.bitratePresets) { preset in
+                BitratePresetsPresetSettingsView(preset: preset)
+                    .deleteDisabled(database.bitratePresets.count == 1)
+            }
+            .onMove { froms, to in database.bitratePresets.move(fromOffsets: froms, toOffset: to) }
+            .onDelete { offsets in database.bitratePresets.remove(atOffsets: offsets) }
+        }
+        CreateButtonView { database.bitratePresets.append(SettingsBitratePreset(...)) }
+    }
+}
+```
+
+**Mapping notes:**
+
+SwiftUI's `List` + `.onMove` + `.onDelete` doesn't have a native Slint
+equivalent (no `swipeActions`). The placeholder substitutes ▲/▼ reorder
+buttons + a long-press popup with Delete (Phase 27 reusable utils backlog
+covers the eventual swipe-action component). `CreateButtonView` becomes a
+`PrimaryButton` with `clicked => { mock-presets = [...mock-presets, {...}]; }`.
+
+**Relevant Slint docs:**
+- [ListView](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/listview.mdx)
+- [PopupWindow](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/window/popupwindow.mdx)
+
 ## Slint best practices applied here
 
 - **A `for` loop over `mock-presets` re-renders reactively** when the list is

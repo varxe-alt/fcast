@@ -108,6 +108,36 @@ muxer changes.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/Streams/Stream/Recording/StreamRecordingSettingsView.swift`
+- `View/Settings/Recordings/RecordingsSettingsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/Streams/Stream/Recording/StreamRecordingSettingsView.swift (excerpt)
+Form {
+    Section { Toggle("Enabled", isOn: $stream.recording.enabled) }
+    Section {
+        Picker("Codec", selection: $stream.recording.videoCodec) {...}
+        Slider(value: $stream.recording.videoBitrate, in: 1...20)
+    }
+    Section { TextField("Folder", text: $stream.recording.folder) }
+}
+```
+
+**Mapping notes:**
+
+A toggle + codec picker + bitrate slider + folder text field on a single
+page. The folder picker is stubbed (no native dialog) — the placeholder
+just stores the typed string. The recordings *browser* sits on a sibling
+page (RecordingsSettingsView) with a `ListView` of past recordings.
+
+**Relevant Slint docs:**
+- [Slider](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/slider.mdx)
+
 ## Slint best practices applied here
 
 - **`Timer { running: state == X }`** is the clean way to gate periodic

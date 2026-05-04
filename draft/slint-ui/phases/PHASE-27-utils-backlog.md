@@ -126,6 +126,61 @@ A component is "done" when:
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Utils/CreateButtonView.swift`
+- `View/Utils/SwipeLeftToDeleteButtonView.swift`
+- `View/Utils/InlinePickerView.swift`
+- `View/Utils/PositionEditView.swift`
+- `View/Utils/QrCodeImageView.swift`
+- `View/Utils/InfoBannerView.swift`
+
+**Representative SwiftUI excerpt:**
+
+Sample SwiftUI utilities to port to Slint:
+```swift
+// CreateButtonView.swift — common "Add new …" button
+HStack {
+    Spacer()
+    Button(action: action) { Image(systemName: "plus.circle"); Text("Add") }
+}
+
+// SwipeLeftToDeleteButtonView.swift — destructive swipe action
+Button(role: .destructive, action: delete) {
+    Label("Delete", systemImage: "trash")
+}
+
+// InlinePickerView.swift — segmented picker
+Picker("", selection: $value) {
+    ForEach(options, id: \.self) { Text($0).tag($0) }
+}
+.pickerStyle(.segmented)
+
+// InfoBannerView.swift — yellow info / orange warning banner
+HStack { Image(systemName: icon); Text(message) }
+    .padding()
+    .background(severity == .warning ? .orange.opacity(0.2) : .yellow.opacity(0.2))
+```
+
+**Mapping notes:**
+
+The Phase 27 utils backlog tracks reusable Slint primitives that 12+
+phases depend on but no single phase fully owns. Each entry maps to a
+Moblin SwiftUI utility and is built once, consumed everywhere:
+
+- `CreateButton` → wraps `PrimaryButton` with leading "+" glyph
+- `SwipeAction` → custom component using `TouchArea` + offset animation
+- `SegmentedPicker` → row of `TextButton`s with active highlight
+- `InfoBanner` → severity-colored banner with leading glyph
+- `QrCodeImage` → grid placeholder until Rust QR rendering lands
+- `PositionEditor` → drag-handle component (also used by Phase 38)
+
+**Relevant Slint docs:**
+- [Component composition](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/guide/language/coding/component.mdx)
+- [TouchArea](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/elements/toucharea.mdx)
+- [animate properties](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/animations.mdx)
+
 ## Slint best practices applied here
 
 - **Tiny single-purpose components > monolithic util libraries.** Each

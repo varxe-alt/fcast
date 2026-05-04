@@ -145,6 +145,46 @@
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/Audio/AudioSettingsView.swift`
+- `View/ControlBar/QuickButton/QuickButtonMicView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/Audio/AudioSettingsView.swift (excerpt)
+Form {
+    Section {
+        NavigationLink { QuickButtonMicView(...) } label: {
+            HStack { Text("Mic"); Spacer(); GrayTextView(text: mic.current.name) }
+        }
+        Toggle("Auto", isOn: $audio.autoSelect)
+    }
+    Section {
+        Picker("Bitrate (kbps)", selection: $stream.audioBitrate) {
+            ForEach([32, 64, 96, 128, 160, 192, 256, 320], id: \.self) { Text("\($0)") }
+        }
+        Picker("Codec", selection: $stream.audioCodec) {
+            ForEach(SettingsAudioCodec.allCases, id: \.self) { Text($0.toString()) }
+        }
+    }
+}
+```
+
+**Mapping notes:**
+
+The `Form` → `Section` → `Picker` shape lines up with Slint's
+`SettingsSection` → `SettingsValueRow` cycler pattern. Mic source picker
+becomes a row whose `value` reads from `mock-mic-source` and whose `clicked`
+cycles through the option array. Bitrate picker uses the same cycler over a
+`property <[int]> bitrate-options-kbps: [32, 64, ...];`.
+
+**Relevant Slint docs:**
+- [ComboBox (alternative)](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/combobox.mdx)
+- [Switch / Toggle](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/basic-widgets/switch.mdx)
+
 ## Slint best practices applied here
 
 - **`SettingsSliderRow` with `changed(v) => ...`** is the right pattern for

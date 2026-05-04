@@ -130,6 +130,40 @@ or reset.
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `View/Settings/ImportExport/ImportExportSettingsView.swift`
+- `View/Settings/ResetSettings/ResetSettingsView.swift`
+
+**Representative SwiftUI excerpt:**
+
+```swift
+// View/Settings/ImportExport/ImportExportSettingsView.swift (excerpt)
+Form {
+    Section {
+        NavigationLink("Export") { ExportSettingsView() }
+        NavigationLink("Import") { ImportSettingsView() }
+    }
+    Section {
+        Button(role: .destructive) { /* show confirm */ } label: {
+            Text("Reset all settings")
+        }
+    }
+}
+```
+
+**Mapping notes:**
+
+Export / Import open dedicated panels (file save / file open are stubbed
+to no-ops). Reset all surfaces a `ConfirmDialog` (a new reusable component
+on Phase 19) — a `PopupWindow` containing a destructive-style button +
+cancel. The dialog accepts a `confirmed()` callback consumers wire to their
+local mutator.
+
+**Relevant Slint docs:**
+- [PopupWindow](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/window/popupwindow.mdx)
+
 ## Slint best practices applied here
 
 - **A reusable `ConfirmDialog` with `confirmed()` / `dismissed()` callbacks**

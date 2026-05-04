@@ -98,6 +98,27 @@
 
 ---
 
+## Moblin source mapping & Slint primitives
+
+**Source files referenced:**
+- `(no direct Moblin analogue — FCast-specific feature)`
+
+**Representative SwiftUI excerpt:**
+
+_(no direct Moblin source — FCast cast history doesn't exist in Moblin.
+The closest visual analogue is Moblin's "Recordings" browser:
+`View/Settings/Recordings/RecordingsSettingsView.swift`)_
+**Mapping notes:**
+
+Modeled visually on Moblin's RecordingsSettingsView — a `List` of past
+sessions with timestamp + duration + thumbnail. In FCast the "session" is
+a past cast (not a recording); the row metadata is `device-name +
+started-at + duration`. Tap a row to re-cast (placeholder: routes back to
+ConnectView with the device pre-selected).
+
+**Relevant Slint docs:**
+- [ListView virtualization](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/listview.mdx)
+
 ## Slint best practices applied here
 
 - **A `selected-id: string` property + a route** is simpler than push/pop
