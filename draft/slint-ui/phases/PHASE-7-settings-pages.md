@@ -148,7 +148,7 @@ panel close button writes the property directly from Slint.
           // Body
           ScrollView {
               VerticalLayout {
-                  spacing: Theme.spacing-section;
+                  spacing: Theme.spacing-default;
                   padding: Theme.padding-screen;
 
                   // (sections inserted in 7-E … 7-H)
@@ -170,12 +170,12 @@ panel close button writes the property directly from Slint.
   SettingsSection {
       title: "RECEIVER";
       SettingsValueRow {
-          label: "Discovered receivers";
+          title: "Discovered receivers";
           value: "3 found";
           // UI-only — clicking would open the connect page.
       }
       SettingsToggleRow {
-          label: "mDNS discovery";
+          title: "mDNS discovery";
           checked: root.mdns-enabled;
           toggled => { root.mdns-enabled = !root.mdns-enabled; }
       }
@@ -192,13 +192,13 @@ panel close button writes the property directly from Slint.
   SettingsSection {
       title: "VIDEO QUALITY";
       SettingsValueRow {
-          label: "Max resolution";
+          title: "Max resolution";
           value: ["480p", "720p", "1080p", "1440p"][root.resolution-idx];
           // UI-only — would open a picker panel.
           clicked => { root.resolution-idx = (root.resolution-idx + 1) mod 4; }
       }
       SettingsValueRow {
-          label: "Max framerate";
+          title: "Max framerate";
           value: ["24 fps", "30 fps", "60 fps"][root.framerate-idx];
           clicked => { root.framerate-idx = (root.framerate-idx + 1) mod 3; }
       }
@@ -217,12 +217,12 @@ panel close button writes the property directly from Slint.
   SettingsSection {
       title: "CODEC & DEBUG";
       SettingsValueRow {
-          label: "H.264 encoder test";
+          title: "H.264 encoder test";
           value: "Open";
           clicked => { Bridge.active-panel = Panel.codec-test; }
       }
       SettingsToggleRow {
-          label: "Show debug panel";
+          title: "Show debug panel";
           checked: root.debug-panel;
           toggled => { root.debug-panel = !root.debug-panel; }
       }
@@ -238,13 +238,15 @@ panel close button writes the property directly from Slint.
   ```slint
   SettingsSection {
       title: "ABOUT";
-      SettingsTextRow {
-          label: "App version";
+      SettingsValueRow {
+          title: "App version";
           value: root.mock-app-version;
+          show-chevron: false;
       }
-      SettingsTextRow {
-          label: "FCast protocol";
+      SettingsValueRow {
+          title: "FCast protocol";
           value: "v3";
+          show-chevron: false;
       }
   }
   ```

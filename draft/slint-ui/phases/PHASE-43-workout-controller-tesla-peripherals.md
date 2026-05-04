@@ -128,12 +128,12 @@ in-out property <[WorkoutDevice]> mock-devices: [
   ];
 
   for m[i] in root.mock-mappings: SettingsValueRow {
-      label: m.label; value: m.action;
+      title: m.label; value: m.action;
       clicked => {
           // cycle through known action IDs
           let actions = ["toggle-cast", "scan-qr", "show-debug", "open-settings"];
           let idx = ...;       // pseudo: find in actions, +1 mod len
-          root.mock-mappings[i].action = actions[mod(idx + 1, actions.length)];
+          root.mock-mappings[i].action = actions[(idx + 1) mod (actions.length)];
       }
   }
   ```

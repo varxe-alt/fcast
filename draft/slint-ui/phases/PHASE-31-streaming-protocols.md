@@ -81,11 +81,11 @@ property <[int]>     srt-latency-options-ms: [120, 200, 500, 1000, 2000];
 in-out property <int> mock-srt-latency-idx: 1;
 
 SettingsValueRow {
-    label: "Latency";
+    title: "Latency";
     value: "\{srt-latency-options-ms[root.mock-srt-latency-idx]} ms";
     clicked => {
         root.mock-srt-latency-idx =
-            mod(root.mock-srt-latency-idx + 1, srt-latency-options-ms.length);
+            (root.mock-srt-latency-idx + 1) mod (srt-latency-options-ms.length);
     }
 }
 ```
@@ -153,11 +153,11 @@ SettingsValueRow {
 
 ## Slint best practices applied here
 
-- **Inline cycler `mod(idx + 1, len)` pattern** is the cheapest
+- **Inline cycler `(idx + 1) mod (len)` pattern** is the cheapest
   placeholder for a `Picker` enum without wiring a `ComboBox`.
 - **`LineEdit { input-type: password; }`** for stream keys / passphrases —
   `LineEdit` is from `std-widgets.slint` and supports a `password` mode
   (per the [LineEdit reference](https://github.com/slint-ui/slint/blob/master/docs/astro/src/content/docs/reference/std-widgets/views/lineedit.mdx)).
-- **`if encryption-idx > 0: SettingsTextRow { label: "Passphrase"; }`** —
+- **`if encryption-idx > 0: SettingsTextRow { title: "Passphrase"; }`** —
   conditional pages inside the same surface keep field count short
   when defaults are picked.

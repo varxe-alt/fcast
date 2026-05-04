@@ -102,13 +102,13 @@ in-out property <color>  mock-text-color: white;
 in-out property <bool>   mock-show-stroke: true;
 
 VerticalLayout {
-    SettingsTextRow { label: "Text"; text: root.mock-format;
+    SettingsTextRow { title: "Text"; text: root.mock-format;
                       edited(s) => { root.mock-format = s; } }
-    SettingsSliderRow { label: "Size"; min: 10; max: 96; value: root.mock-font-size;
+    SettingsSliderRow { title: "Size"; min: 10; max: 96; value: root.mock-font-size;
                         changed(v) => { root.mock-font-size = v; } }
-    SettingsValueRow { label: "Anchor"; value: anchor-options[root.mock-anchor-idx];
-                       clicked => { root.mock-anchor-idx = mod(root.mock-anchor-idx + 1, 9); } }
-    SettingsToggleRow { label: "Stroke"; checked: root.mock-show-stroke;
+    SettingsValueRow { title: "Anchor"; value: anchor-options[root.mock-anchor-idx];
+                       clicked => { root.mock-anchor-idx = (root.mock-anchor-idx + 1) mod (9); } }
+    SettingsToggleRow { title: "Stroke"; checked: root.mock-show-stroke;
                         toggled => { root.mock-show-stroke = !root.mock-show-stroke; } }
 
     // Live preview of the text

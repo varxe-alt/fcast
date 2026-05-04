@@ -116,12 +116,12 @@ flow.
 
       background: Theme.surface-primary;
       VerticalLayout {
-          padding: Theme.padding-screen; spacing: Theme.spacing-md;
+          padding: Theme.padding-screen; spacing: Theme.spacing-default;
 
           HorizontalLayout {
               alignment: space-between;
               Text { text: "Destinations"; color: Theme.text-primary;
-                     font-size: Theme.font-size-title;
+                     font-size: Theme.font-size-heading;
                      font-weight: FontWeight.semi-bold; }
               TextButton { label: "Done";
                   clicked => { Bridge.active-panel = Panel.none; } }
@@ -129,15 +129,15 @@ flow.
 
           SettingsSection { title: "PLATFORMS";
               for d in root.mock-destinations: SettingsValueRow {
-                  label: d.label; value: d.sub-label;
+                  title: d.label; value: d.sub-label;
                   clicked => { Bridge.active-panel = d.panel; }
               }
           }
 
           SettingsSection { title: "AGGREGATE";
-              SettingsValueRow { label: "Multi-streaming"; value: "0 active";
+              SettingsValueRow { title: "Multi-streaming"; value: "0 active";
                   clicked => { Bridge.active-panel = Panel.multi-streaming; } }
-              SettingsValueRow { label: "Go-live notification"; value: "Off";
+              SettingsValueRow { title: "Go-live notification"; value: "Off";
                   clicked => { Bridge.active-panel = Panel.go-live-notification; } }
           }
       }
@@ -164,19 +164,19 @@ flow.
 
       background: Theme.surface-primary;
       VerticalLayout {
-          padding: Theme.padding-screen; spacing: Theme.spacing-md;
+          padding: Theme.padding-screen; spacing: Theme.spacing-default;
 
           HorizontalLayout {
               alignment: space-between;
               Text { text: "Twitch"; color: Theme.text-primary;
-                     font-size: Theme.font-size-title;
+                     font-size: Theme.font-size-heading;
                      font-weight: FontWeight.semi-bold; }
               TextButton { label: "Back";
                   clicked => { Bridge.active-panel = Panel.destinations; } }
           }
 
           SettingsSection { title: "ACCOUNT";
-              SettingsValueRow { label: "Status";
+              SettingsValueRow { title: "Status";
                   value: root.mock-logged-in ? "Signed in" : "Not signed in"; }
               if !root.mock-logged-in:
               PrimaryButton { label: "Sign in with Twitch";
@@ -187,13 +187,13 @@ flow.
           }
 
           SettingsSection { title: "CHANNEL";
-              SettingsTextRow { label: "Channel name"; placeholder: "your_channel";
+              SettingsTextRow { title: "Channel name"; placeholder: "your_channel";
                                 text: root.mock-channel-name;
                                 edited(s) => { root.mock-channel-name = s; } }
-              SettingsTextRow { label: "Broadcaster ID"; placeholder: "(auto)";
+              SettingsTextRow { title: "Broadcaster ID"; placeholder: "(auto)";
                                 text: root.mock-broadcaster-id;
                                 edited(s) => { root.mock-broadcaster-id = s; } }
-              SettingsToggleRow { label: "Enable emotes";
+              SettingsToggleRow { title: "Enable emotes";
                                   checked: root.mock-enable-emotes;
                                   toggled => { root.mock-enable-emotes = !root.mock-enable-emotes; } }
           }

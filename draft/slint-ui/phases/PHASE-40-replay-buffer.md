@@ -73,18 +73,18 @@ export component ReplaySettingsPage inherits Rectangle {
     property <[string]> buffer-options: ["10s", "30s", "60s", "120s", "300s"];
 
     VerticalLayout {
-        SettingsToggleRow { label: "Replay buffer enabled";
+        SettingsToggleRow { title: "Replay buffer enabled";
                             checked: root.mock-enabled;
                             toggled => { root.mock-enabled = !root.mock-enabled; } }
-        SettingsValueRow  { label: "Buffer length";
+        SettingsValueRow  { title: "Buffer length";
                             value: buffer-options[root.mock-buffer-len-idx];
                             clicked => {
                                 root.mock-buffer-len-idx =
-                                    mod(root.mock-buffer-len-idx + 1, buffer-options.length);
+                                    (root.mock-buffer-len-idx + 1) mod (buffer-options.length);
                             } }
         SettingsSection { title: "SAVED REPLAYS";
             for r in root.mock-saved: SettingsValueRow {
-                label: r.label; value: r.duration + " · " + r.saved-at;
+                title: r.label; value: r.duration + " · " + r.saved-at;
                 clicked => { Bridge.active-panel = Panel.replay-viewer; }
             }
         }
@@ -103,7 +103,7 @@ VerticalLayout {
     Rectangle {
         height: 220px; background: black; border-radius: Theme.radius-card;
         Text { text: root.mock-playing ? "▶ Playing" : "⏸ Paused";
-               color: white; font-size: Theme.font-size-title;
+               color: white; font-size: Theme.font-size-heading;
                horizontal-alignment: center; vertical-alignment: center; }
     }
 
