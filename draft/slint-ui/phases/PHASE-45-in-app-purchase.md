@@ -81,9 +81,9 @@ export component CosmeticsStorePage inherits Rectangle {
 
     background: Theme.surface-primary;
     VerticalLayout {
-        padding: Theme.padding-screen; spacing: Theme.spacing-md;
+        padding: Theme.padding-screen; spacing: Theme.spacing-default;
 
-        Text { text: "Store"; font-size: Theme.font-size-title;
+        Text { text: "Store"; font-size: Theme.font-size-heading;
                font-weight: FontWeight.semi-bold; color: Theme.text-primary; }
 
         for sec in root.mock-sections: SettingsSection { title: sec.title;
@@ -102,7 +102,7 @@ export component CosmeticsStorePage inherits Rectangle {
                     Text { text: product.title; color: Theme.text-primary;
                            font-weight: FontWeight.semi-bold; }
                     Text { text: product.description; color: Theme.text-secondary;
-                           font-size: Theme.font-size-caption; }
+                           font-size: Theme.font-size-label; }
                 }
                 if product.owned:
                 Text { text: "✓ Owned"; color: Theme.success;

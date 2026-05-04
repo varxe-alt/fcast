@@ -96,14 +96,14 @@ Each `ingest_<server>_settings_page.slint` follows the same template:
 
 ```slint
 SettingsSection { title: "GENERAL";
-    SettingsToggleRow { label: "Enabled";
+    SettingsToggleRow { title: "Enabled";
                         checked: root.mock-enabled;
                         toggled => { root.mock-enabled = !root.mock-enabled; } }
-    SettingsValueRow  { label: "Port"; value: "\{root.mock-port}";
+    SettingsValueRow  { title: "Port"; value: "\{root.mock-port}";
                         clicked => { root.mock-port = root.mock-port == 1935 ? 1936 : 1935; } }
 }
 SettingsSection { title: "STREAMS";
-    for s in root.mock-streams: SettingsValueRow { label: s.name; value: "\{s.bitrate-kbps} kbps";
+    for s in root.mock-streams: SettingsValueRow { title: s.name; value: "\{s.bitrate-kbps} kbps";
         clicked => { Bridge.active-panel = Panel.ingest-rtmp-stream; } }
     PrimaryButton { label: "Add stream";
         clicked => {

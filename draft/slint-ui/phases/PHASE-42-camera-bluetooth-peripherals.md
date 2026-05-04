@@ -72,21 +72,21 @@ Common shape: a list per peripheral type + a "scan" / "pair" entry.
 export component PeripheralsSettingsPage inherits Rectangle {
     VerticalLayout {
         SettingsSection { title: "VIDEO";
-            SettingsValueRow { label: "DJI devices";   value: "0 paired";
+            SettingsValueRow { title: "DJI devices";   value: "0 paired";
                 clicked => { Bridge.active-panel = Panel.peripheral-dji; } }
-            SettingsValueRow { label: "GoPro";          value: "Not paired";
+            SettingsValueRow { title: "GoPro";          value: "Not paired";
                 clicked => { Bridge.active-panel = Panel.peripheral-gopro; } }
         }
         SettingsSection { title: "AUDIO / INPUT";
-            SettingsValueRow { label: "Gimbal";         value: "Not paired";
+            SettingsValueRow { title: "Gimbal";         value: "Not paired";
                 clicked => { Bridge.active-panel = Panel.peripheral-gimbal; } }
-            SettingsValueRow { label: "Selfie stick";  value: "Not paired";
+            SettingsValueRow { title: "Selfie stick";  value: "Not paired";
                 clicked => { Bridge.active-panel = Panel.peripheral-selfie-stick; } }
         }
         SettingsSection { title: "OTHER";
-            SettingsValueRow { label: "Phone coolers";  value: "Not paired";
+            SettingsValueRow { title: "Phone coolers";  value: "Not paired";
                 clicked => { Bridge.active-panel = Panel.peripheral-phone-coolers; } }
-            SettingsValueRow { label: "Cat printers";   value: "Not paired";
+            SettingsValueRow { title: "Cat printers";   value: "Not paired";
                 clicked => { Bridge.active-panel = Panel.peripheral-cat-printers; } }
         }
     }
@@ -111,7 +111,7 @@ in-out property <[DjiDevice]> mock-devices: [
 
 VerticalLayout {
     for d in root.mock-devices: SettingsValueRow {
-        label: d.name + " (" + d.model + ")";
+        title: d.name + " (" + d.model + ")";
         value: d.connected ? "Connected" : "Disconnected";
         clicked => { /* open per-device settings — model picker, RTMP URL, mode */ }
     }
@@ -157,7 +157,7 @@ VerticalLayout {
       LoadingView { /* from Phase 3 */ }
       // Scanned devices list
       for device in mock-found: SettingsValueRow {
-          label: device.name; value: device.rssi + " dBm";
+          title: device.name; value: device.rssi + " dBm";
           clicked => { /* attempt to pair */ }
       }
       DestructiveButton { label: "Cancel";

@@ -80,7 +80,7 @@ in-out property <[MediaPlayer]> mock-players: [
 
 VerticalLayout {
     for p in root.mock-players: SettingsValueRow {
-        label: p.name;
+        title: p.name;
         value: "\{p.file-count} files" + (p.looping ? " · loop" : "");
         clicked => { Bridge.active-panel = Panel.media-player-instance; }
     }
@@ -112,7 +112,7 @@ VerticalLayout {
         spacing: 4px;
         TextButton { label: "←"; }
         TextButton { label: "→"; }
-        SettingsTextRow { label: ""; placeholder: "Enter URL";
+        SettingsTextRow { title: ""; placeholder: "Enter URL";
                           text: root.mock-url;
                           edited(s) => { root.mock-url = s; } }
         TextButton { label: "Reload"; }

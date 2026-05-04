@@ -132,7 +132,7 @@ map directly onto `ListView`'s built-in virtualization.
               text: root.message.timestamp;
               color: Theme.text-secondary;
               font-family: "monospace";
-              font-size: Theme.font-size-caption;
+              font-size: Theme.font-size-label;
           }
 
           // Streamer / moderator badge
@@ -222,7 +222,7 @@ map directly onto `ListView`'s built-in virtualization.
   ```slint
   // In full_settings_page.slint
   SettingsValueRow {
-      label: "Chat overlay";
+      title: "Chat overlay";
       value: "Configure";
       clicked => { Bridge.active-panel = Panel.chat-settings; }
   }
@@ -250,43 +250,43 @@ map directly onto `ListView`'s built-in virtualization.
 
       VerticalLayout {
           padding: Theme.padding-screen;
-          spacing: Theme.spacing-md;
+          spacing: Theme.spacing-default;
 
           HorizontalLayout {
               alignment: space-between;
               Text { text: "Chat"; color: Theme.text-primary;
-                     font-size: Theme.font-size-title;
+                     font-size: Theme.font-size-heading;
                      font-weight: FontWeight.semi-bold; }
               TextButton { label: "Done";
                   clicked => { Bridge.active-panel = Panel.none; } }
           }
 
           SettingsSection { title: "ENABLED";
-              SettingsToggleRow { label: "Show chat";
+              SettingsToggleRow { title: "Show chat";
                                   checked: root.mock-enabled;
                                   toggled => { root.mock-enabled = !root.mock-enabled; } }
           }
 
           SettingsSection { title: "APPEARANCE";
-              SettingsValueRow { label: "Density"; value: ["Compact", "Normal", "Large"][root.mock-appearance-idx];
-                  clicked => { root.mock-appearance-idx = mod(root.mock-appearance-idx + 1, 3); } }
-              SettingsValueRow { label: "Layout";  value: ["Bottom up", "Top down"][root.mock-layout-idx];
-                  clicked => { root.mock-layout-idx = mod(root.mock-layout-idx + 1, 2); } }
-              SettingsValueRow { label: "Maximum message age (s)"; value: "\{root.mock-max-age}";
+              SettingsValueRow { title: "Density"; value: ["Compact", "Normal", "Large"][root.mock-appearance-idx];
+                  clicked => { root.mock-appearance-idx = (root.mock-appearance-idx + 1) mod (3); } }
+              SettingsValueRow { title: "Layout";  value: ["Bottom up", "Top down"][root.mock-layout-idx];
+                  clicked => { root.mock-layout-idx = (root.mock-layout-idx + 1) mod (2); } }
+              SettingsValueRow { title: "Maximum message age (s)"; value: "\{root.mock-max-age}";
                   clicked => { root.mock-max-age = root.mock-max-age >= 600 ? 30 : root.mock-max-age + 30; } }
-              SettingsToggleRow { label: "Show deleted messages";
+              SettingsToggleRow { title: "Show deleted messages";
                                   checked: root.mock-show-deleted;
                                   toggled => { root.mock-show-deleted = !root.mock-show-deleted; } }
           }
 
           SettingsSection { title: "AUTOMATION";
-              SettingsValueRow { label: "Bot"; value: root.mock-bot-enabled ? "On" : "Off";
+              SettingsValueRow { title: "Bot"; value: root.mock-bot-enabled ? "On" : "Off";
                   clicked => { Bridge.active-panel = Panel.chat-bot-settings; } }
-              SettingsValueRow { label: "Filters"; value: "0 rules";
+              SettingsValueRow { title: "Filters"; value: "0 rules";
                   clicked => { Bridge.active-panel = Panel.chat-filters-settings; } }
-              SettingsValueRow { label: "Nicknames"; value: "0 overrides";
+              SettingsValueRow { title: "Nicknames"; value: "0 overrides";
                   clicked => { Bridge.active-panel = Panel.chat-nicknames-settings; } }
-              SettingsValueRow { label: "Text-to-speech"; value: root.mock-tts-enabled ? "On" : "Off";
+              SettingsValueRow { title: "Text-to-speech"; value: root.mock-tts-enabled ? "On" : "Off";
                   clicked => { Bridge.active-panel = Panel.chat-tts-settings; } }
           }
       }

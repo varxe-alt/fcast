@@ -78,7 +78,7 @@ export component WidgetWizardRootPage inherits Rectangle {
 
     VerticalLayout {
         for k in root.mock-kinds: SettingsValueRow {
-            label: k.label; value: "Create";
+            title: k.label; value: "Create";
             clicked => { Bridge.active-panel = k.panel; }
         }
     }
@@ -108,14 +108,14 @@ export component WidgetWizardTextPage inherits Rectangle {
 
     VerticalLayout {
         if root.mock-step == 0:
-        SettingsTextRow { label: "Name"; text: root.mock-name;
+        SettingsTextRow { title: "Name"; text: root.mock-name;
                           edited(s) => { root.mock-name = s; } }
 
         if root.mock-step == 1:
         VerticalLayout {
-            SettingsTextRow { label: "Text"; text: root.mock-format;
+            SettingsTextRow { title: "Text"; text: root.mock-format;
                               edited(s) => { root.mock-format = s; } }
-            SettingsSliderRow { label: "Size"; min: 10; max: 96;
+            SettingsSliderRow { title: "Size"; min: 10; max: 96;
                                 value: root.mock-font-size;
                                 changed(v) => { root.mock-font-size = v; } }
         }

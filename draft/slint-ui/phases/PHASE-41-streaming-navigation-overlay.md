@@ -73,13 +73,13 @@ export component StreamingNavOverlay inherits Rectangle {
 
     VerticalLayout {
         alignment: center;
-        spacing: Theme.spacing-md;
+        spacing: Theme.spacing-default;
         for link in root.mock-links: Rectangle {
             width: 240px; height: 56px;
             background: Theme.surface-card;
             border-radius: Theme.radius-card;
             HorizontalLayout {
-                padding: Theme.spacing-md; spacing: 12px;
+                padding: Theme.spacing-default; spacing: 12px;
                 Text { text: link.icon; font-size: 24px;
                        vertical-alignment: center; }
                 Text { text: link.label; color: Theme.text-primary;

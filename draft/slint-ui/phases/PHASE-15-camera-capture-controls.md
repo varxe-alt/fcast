@@ -96,7 +96,7 @@ so that when Rust capability lands, only the binding source changes.
 
   ```slint
   SettingsValueRow {
-      label: "Camera";
+      title: "Camera";
       value: "Open";
       clicked => { Bridge.active-panel = Panel.camera; }
   }

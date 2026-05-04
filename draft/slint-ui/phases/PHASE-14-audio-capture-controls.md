@@ -59,23 +59,23 @@
 
           ScrollView {
               VerticalLayout {
-                  spacing: Theme.spacing-section;
+                  spacing: Theme.spacing-default;
                   padding: Theme.padding-screen;
 
                   SettingsSection {
                       title: "INPUT";
                       SettingsValueRow {
-                          label: "Source";
+                          title: "Source";
                           value: ["Microphone", "System audio", "Both"][root.mock-source-idx];
                           clicked => { root.mock-source-idx = (root.mock-source-idx + 1) mod 3; }
                       }
                       SettingsToggleRow {
-                          label: "Mute";
+                          title: "Mute";
                           checked: root.mock-muted;
                           toggled => { root.mock-muted = !root.mock-muted; }
                       }
                       SettingsSliderRow {
-                          label: "Input gain";
+                          title: "Input gain";
                           value: root.mock-input-gain * 100;
                           minimum: 0; maximum: 100; unit: "%";
                           changed(v) => { root.mock-input-gain = v / 100; }
@@ -85,12 +85,12 @@
                   SettingsSection {
                       title: "ENCODING";
                       SettingsValueRow {
-                          label: "Bitrate";
+                          title: "Bitrate";
                           value: ["64 kbps", "128 kbps", "192 kbps", "256 kbps"][root.mock-bitrate-idx];
                           clicked => { root.mock-bitrate-idx = (root.mock-bitrate-idx + 1) mod 4; }
                       }
                       SettingsValueRow {
-                          label: "Codec";
+                          title: "Codec";
                           value: "AAC-LC";
                       }
                   }
@@ -119,7 +119,7 @@
 
   ```slint
   SettingsValueRow {
-      label: "Audio";
+      title: "Audio";
       value: "Open";
       clicked => { Bridge.active-panel = Panel.audio; }
   }

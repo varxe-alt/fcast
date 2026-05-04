@@ -102,7 +102,7 @@ export component WidgetAlertsTwitchPane inherits Rectangle {
 
     VerticalLayout {
         for e in root.mock-events: SettingsValueRow {
-            label: e.label;
+            title: e.label;
             value: (e.enabled ? "On" : "Off") + " · " + e.media-name;
             clicked => { Bridge.active-panel = Panel.widget-alert-detail; }
         }

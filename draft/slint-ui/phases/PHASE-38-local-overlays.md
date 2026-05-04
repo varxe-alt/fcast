@@ -67,7 +67,7 @@ export component LocalOverlaysSettingsPage inherits Rectangle {
 
     VerticalLayout {
         for o[i] in root.mock-overlays: SettingsToggleRow {
-            label: o.name + " · " + o.widget-name;
+            title: o.name + " · " + o.widget-name;
             checked: o.enabled;
             toggled => {
                 root.mock-overlays[i].enabled = !o.enabled;
@@ -114,10 +114,10 @@ export component WidgetPositionEditor inherits Rectangle {
 
     // X / Y cyclers as a fallback for keyboard / non-pointer environments
     HorizontalLayout {
-        SettingsValueRow { label: "X"; value: "\{root.mock-x}%";
-            clicked => { root.mock-x = mod(root.mock-x + 5%, 100%); } }
-        SettingsValueRow { label: "Y"; value: "\{root.mock-y}%";
-            clicked => { root.mock-y = mod(root.mock-y + 5%, 100%); } }
+        SettingsValueRow { title: "X"; value: "\{root.mock-x}%";
+            clicked => { root.mock-x = (root.mock-x + 5%) mod (100%); } }
+        SettingsValueRow { title: "Y"; value: "\{root.mock-y}%";
+            clicked => { root.mock-y = (root.mock-y + 5%) mod (100%); } }
     }
 }
 ```

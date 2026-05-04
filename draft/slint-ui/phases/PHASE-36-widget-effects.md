@@ -77,7 +77,7 @@ export component WidgetEffectsPage inherits Rectangle {
 
     VerticalLayout {
         for e in root.mock-effects: HorizontalLayout {
-            SettingsToggleRow { label: e.label; checked: e.enabled;
+            SettingsToggleRow { title: e.label; checked: e.enabled;
                 toggled => { /* update mock-effects[i].enabled */ } }
             TextButton { label: "›";
                 clicked => { Bridge.active-panel = e.panel; } }
@@ -137,7 +137,7 @@ export component WidgetEffectsPage inherits Rectangle {
 
 ## Slint best practices applied here
 
-- **`mod(idx + 1, options.length)`** picker pattern is reused — no
+- **`(idx + 1) mod (options.length)`** picker pattern is reused — no
   combobox sprawl.
 - **`property <[T]>` array literal** lets the bundled LUT list ride
   inline with no Rust setup.

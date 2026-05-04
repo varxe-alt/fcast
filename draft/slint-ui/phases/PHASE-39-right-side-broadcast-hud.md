@@ -151,12 +151,12 @@ in-out property <float> mock-radius: 0.5;
 in-out property <float> mock-strength: 0.5;
 
 VerticalLayout {
-    SettingsValueRow { label: "Mode"; value: ["Smoothness", "Shape"][root.mock-mode-idx];
-        clicked => { root.mock-mode-idx = mod(root.mock-mode-idx + 1, 2); } }
-    SettingsSliderRow { label: "Radius"; min: 0; max: 1;
+    SettingsValueRow { title: "Mode"; value: ["Smoothness", "Shape"][root.mock-mode-idx];
+        clicked => { root.mock-mode-idx = (root.mock-mode-idx + 1) mod (2); } }
+    SettingsSliderRow { title: "Radius"; min: 0; max: 1;
                         value: root.mock-radius * 100;
                         changed(v) => { root.mock-radius = v / 100; } }
-    SettingsSliderRow { label: "Strength"; min: 0; max: 1;
+    SettingsSliderRow { title: "Strength"; min: 0; max: 1;
                         value: root.mock-strength * 100;
                         changed(v) => { root.mock-strength = v / 100; } }
 }
