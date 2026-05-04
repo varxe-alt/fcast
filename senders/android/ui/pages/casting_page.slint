@@ -9,6 +9,7 @@
 
 import { VerticalBox } from "std-widgets.slint";
 import { Bridge, AppState } from "../bridge.slint";
+import { StatusItem, StatusSeverity } from "../bridge.slint";
 import { LoadingView, DestructiveButton } from "../components/buttons.slint";
 import { StatusOverlay } from "../components/status_overlay.slint";
 
@@ -43,6 +44,20 @@ export component WaitingForMediaView inherits Rectangle {
 // ── CastingView ───────────────────────────────────────────────────────────────
 
 export component CastingView inherits Rectangle {
+    // UI-only placeholder (Phase 5). Replace with `Bridge.status-items` when
+    // Phase 8 (Rust wiring) lands — see PHASE-8-rust-bridge.md.
+    in-out property <[StatusItem]> mock-status-items: [
+        { label: "Receiver", value: "Living Room TV",       severity: StatusSeverity.info },
+        { label: "Encoder",  value: "amcvidenc (H.264)",    severity: StatusSeverity.info },
+        { label: "Network",  value: "192.168.1.42",         severity: StatusSeverity.info },
+    ];
+    // Severity-coverage stub. Flip `items: root.mock-status-items-error;` once,
+    // screenshot to verify warning/error coloring, then revert before commit.
+    in-out property <[StatusItem]> mock-status-items-error: [
+        { label: "Receiver", value: "Living Room TV", severity: StatusSeverity.info },
+        { label: "Network",  value: "Reconnecting…",  severity: StatusSeverity.warning },
+        { label: "Encoder",  value: "Failed",         severity: StatusSeverity.error },
+    ];
     VerticalBox {
         alignment: center;
         Text {
@@ -57,6 +72,6 @@ export component CastingView inherits Rectangle {
         x: 0;
         y: 0;
         width: parent.width * 0.5;
-        items: Bridge.status-items;
+        items: root.mock-status-items;
     }
 }

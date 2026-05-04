@@ -500,6 +500,10 @@ struct Application {
 }
 
 
+// Phase 8 (deferred): producer of Bridge.status-items. Currently unused —
+// CastingView renders mock-status-items inline. Keep this helper so the
+// Rust side of Phase 8 is a one-line wire-up.
+#[allow(dead_code)]
 fn build_status_items(receiver_name: &str, encoder: &str, network: &str) -> Vec<crate::StatusItem> {
     vec![
         crate::StatusItem {
@@ -639,7 +643,7 @@ impl Application {
         match event {
             Event::EndSession { .. } => {
                 self.ui_weak.upgrade_in_event_loop(|ui| {
-                    ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
+                    // Phase 8 (deferred): clear Bridge.status-items here.
                     ui.global::<Bridge>()
                         .invoke_change_state(AppState::Disconnected);
                 })?;
@@ -737,7 +741,7 @@ impl Application {
                                             );
 
                                             self.ui_weak.upgrade_in_event_loop(|ui| {
-                                                ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
+                                                // Phase 8 (deferred): clear Bridge.status-items here.
                                                 ui.global::<Bridge>()
                                                     .invoke_change_state(AppState::Disconnected);
                                             })?;
@@ -761,7 +765,7 @@ impl Application {
             Event::CaptureCancelled => {
                 set_capture_active(false);
                 self.ui_weak.upgrade_in_event_loop(|ui| {
-                    ui.global::<Bridge>().set_status_items(std::rc::Rc::new(slint::VecModel::default()).into());
+                    // Phase 8 (deferred): clear Bridge.status-items here.
                     ui.global::<Bridge>()
                         .invoke_change_state(AppState::Disconnected);
                 })?;
@@ -860,11 +864,10 @@ impl Application {
                 let receiver_name = self.active_device.as_ref().map(|d| d.name()).unwrap_or_default();
                 let encoder_name = "Hardware"; // Blocked by P0-1: Placeholder until encoder selection works
                 let network_info = self.local_address.as_ref().map(|a| a.to_string()).unwrap_or_default();
-                let status_items = build_status_items(&receiver_name, encoder_name, &network_info);
+                // Phase 8 (deferred): wire Bridge.status-items here from
+                // build_status_items(&receiver_name, encoder_name, &network_info).
 
                 self.ui_weak.upgrade_in_event_loop(move |ui| {
-                    let status_model = std::rc::Rc::new(slint::VecModel::from(status_items));
-                    ui.global::<Bridge>().set_status_items(status_model.into());
                     ui.global::<Bridge>().invoke_change_state(AppState::Casting);
                 })?;
             }
