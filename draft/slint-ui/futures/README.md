@@ -4,17 +4,19 @@ This directory triages **every Moblin SwiftUI view file** in
 `draft/moblin-ui/Moblin/View/` (279 files + `MainView.swift`) for whether it
 applies to the FCast Android sender Slint UI.
 
-The companion `phases/` directory contains the **executable plan** (Phases 0–11)
-for porting the applicable subset. This `futures/` directory is the
-**reference / triage record** that documents what is *not* being ported, and
-why — so future contributors don't ask "did you miss `XYZView.swift`?".
+The companion `phases/` directory contains the **executable plan**
+(Phases 0–27) for porting the applicable subset and surfacing every
+applicable-future / deferred feature as a UI-only placeholder. This
+`futures/` directory is the **reference / triage record** that documents what
+is *not* being ported, and why — so future contributors don't ask "did you
+miss `XYZView.swift`?".
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | [`README.md`](README.md) | This file — overview and exclusion taxonomy. |
-| [`NOT-APPLICABLE.md`](NOT-APPLICABLE.md) | Per-file table marking each Moblin view as applicable / not applicable / deferred, with a one-line reason. |
+| [`NOT-APPLICABLE.md`](NOT-APPLICABLE.md) | Per-file table marking each Moblin view as applicable / not applicable / deferred, with a one-line reason and a target phase reference. |
 
 ## Applicability legend
 
@@ -22,8 +24,8 @@ Each Moblin view file is tagged with one of:
 
 | Tag | Meaning |
 |---|---|
-| **applicable** | Has an FCast sender equivalent and is already covered in `phases/` (Phase 0–11). |
-| **applicable-future** | Has an FCast sender equivalent but is intentionally out of scope for the v1 phase plan. Could be promoted to a future phase if/when the underlying Rust capability lands. |
+| **applicable** | Has an FCast sender equivalent and is already covered in `phases/` (Phase 0–4). |
+| **applicable → Phase N** | Promoted into a UI-only placeholder phase (5–27). The placeholder ships **UI without functionality**; Rust wiring is parked in Phase 8. |
 | **not-applicable — chat** | Streamer chat (Twitch/Kick/YouTube IRC, chat overlays, chat bots, TTS). FCast is a media-cast protocol with no chat surface. |
 | **not-applicable — navigation** | Streamer-broadcasting navigation overlay (location/route HUD). Not relevant to a cast remote. |
 | **not-applicable — replay** | Live-stream instant replay (rewind during broadcast). Not applicable to a one-way cast sender. |
@@ -34,7 +36,25 @@ Each Moblin view file is tagged with one of:
 | **not-applicable — ios-target** | iOS/watchOS/macOS-specific targets: Apple Watch app, Mac key-press, external display, iOS deep-link creator. Android sender doesn't have these targets. |
 | **not-applicable — iap** | In-app purchase / store. FCast Android sender does not monetize. |
 | **not-applicable — moblin-internal** | Moblin-specific feature (Moblink relay, OpenAI integration, MetalPetal effects, etc.) with no FCast analogue. |
-| **deferred — needs-rust-capability** | Has potential FCast applicability but blocked on Rust media-graph capability that doesn't exist yet (camera capture, local recording, Wi-Fi Aware peer discovery). Revisit after that capability lands. |
+| **deferred → Phase N** | Has potential FCast applicability but blocked on Rust media-graph capability that doesn't exist yet (camera capture, local recording, Wi-Fi Aware peer discovery). Promoted as a **UI-only placeholder** in the listed phase; functionality lands when Rust capability ships. |
+
+## UI-only roadmap (Phases 5–27)
+
+The user direction *"create a UI without functionality — placeholders for all
+applicable-future / deferred entries"* has been turned into a 23-phase plan
+(Phases 5–27). Every entry tagged `applicable-future` or
+`deferred — needs-rust-capability` in `NOT-APPLICABLE.md` is now mapped to a
+target phase under `phases/`.
+
+The mapping is in `phases/PHASE-11-source-tracking.md` and individual
+`phases/PHASE-NN-*.md` files. Each placeholder phase ships:
+
+- A `.slint` page or component.
+- Inline `in-out property <[T]> mock-...` stub data.
+- Local-only state mutations (no Rust callbacks).
+- A `Panel` enum variant (where it's a sub-page).
+- Documented "What's NOT in this phase" section parking real wiring in
+  `futures/`.
 
 ## Exclusion summary (per user direction)
 
@@ -51,14 +71,27 @@ decision documented in `draft/slint-ui/phases/PHASE-7-settings-pages.md`
 (which already lists chat/scenes/widgets/ingests as "omitted by design") and
 in `draft/slint-ui/README.md`.
 
+## Rust wiring (post-UI)
+
+Phase 8 is parked as a deferred placeholder. When the team is ready to
+graduate Phases 5–7 + 12–27 from "UI-only" to "wired", Phase 8 will be
+re-expanded with:
+
+- `UiState` helper (`Weak<MainWindow>` only — no `Rc<VecModel>` in shared state).
+- `upgrade_in_event_loop` discipline for cross-thread updates.
+- `on_invoke_action(id)` → `match id` dispatch in `lib.rs`.
+- `Bridge.devices: [string]` → `[ReceiverItem]` migration.
+- Per-page model promotions: each `mock-*` inline `in-out property` becomes a
+  `Bridge.<name>` property, set from Rust.
+
 ## How to use this directory
 
 - **When triaging a new feature request**, check `NOT-APPLICABLE.md` first to
   see whether the relevant Moblin view was excluded by category. If it was,
   the request is either out of scope or requires a scope-change discussion.
-- **When promoting a `deferred — needs-rust-capability` entry**, update its
-  row in `NOT-APPLICABLE.md` (change tag to `applicable-future` or
-  `applicable`), open a new `phases/PHASE-NN-*.md` document with the actual
-  port plan, and update `phases/README.md`.
+- **When promoting a `deferred → Phase N` entry to functional**, the UI
+  placeholder already exists; the work is reactivating Phase 8 for that
+  specific feature and migrating the inline stub to a `Bridge.<name>`
+  property.
 - **Do not delete excluded entries** when scope changes. Mark them with a
   history note in `NOT-APPLICABLE.md` so the audit trail is preserved.

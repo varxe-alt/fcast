@@ -15,6 +15,42 @@ categories (chat / navigation / replay / right-side overlays).
 
 ---
 
+## Promotion mapping (Phases 12–27)
+
+Per user direction (*"create a UI without functionality — placeholders for all
+applicable-future / deferred entries"*), every entry tagged
+`applicable-future` or `deferred — needs-rust-capability` in the per-section
+tables below has been **promoted into a UI-only placeholder phase** under
+`phases/`. The phase ships `.slint` UI with inline stub data; functional
+integration is parked in Phase 8.
+
+| Cluster | Source files (representative) | Target phase |
+|---|---|---|
+| Capture preview | `Stream/StreamView` | `PHASE-12-capture-preview.md` |
+| Status badges (battery / thermal / network) | `ControlBar/{Battery,ThermalStateSheet}View` | `PHASE-13-status-badges-row.md` |
+| Audio capture controls | `Settings/Audio/`, `ControlBar/QuickButton/QuickButtonMicView` | `PHASE-14-audio-capture-controls.md` |
+| Camera capture controls | `Settings/Camera/{CameraSettings,CameraControls,MirrorFrontCamera,TapScreenToFocus,VideoStabilization,Zoom}` (8 files) | `PHASE-15-camera-capture-controls.md` |
+| Bitrate & quality presets | `Settings/BitratePresets/`, `ControlBar/QuickButton/QuickButtonBitrateView` | `PHASE-16-bitrate-quality-presets.md` |
+| Quick-action customization | `Settings/Display/QuickButtons/{QuickButtonsSettings,QuickButtonsButtonSettings}` | `PHASE-17-quick-action-customization.md` |
+| Privacy & lifecycle modes | `Main/{LockScreen,StealthMode,SnapshotCountdown}View` | `PHASE-18-privacy-lifecycle-modes.md` |
+| Settings backup & reset | `Settings/{ImportExport,Reset}/` | `PHASE-19-settings-backup-reset.md` |
+| Cast history | `Settings/StreamingHistory/` | `PHASE-20-cast-history.md` |
+| Help & support | `Settings/{About,HelpAndSupport}/` | `PHASE-21-help-and-support.md` |
+| Network interface & Wi-Fi Aware | `Settings/Display/NetworkInterfaceNames/`, `Settings/WiFiAware/` | `PHASE-22-network-interface-wifi-aware.md` |
+| Local recording | `Settings/Recordings/` | `PHASE-23-local-recording.md` |
+| Pairing QR & receiver management | `Utils/{QrCodeImage,ContextMenu,SwipeLeftTo,NameEdit}` | `PHASE-24-pairing-qr-receiver-management.md` |
+| Macros & action chains | `Settings/Macros/`, `ControlBar/QuickButton/QuickButtonMacrosView` | `PHASE-25-macros-action-chains.md` |
+| Debug log viewer | `Settings/Debug/{Log,Video}` | `PHASE-26-debug-log-viewer.md` |
+| Reusable utils backlog | `Utils/*` (remaining un-ported files) | `PHASE-27-utils-backlog.md` |
+
+A row tagged `applicable-future` or `deferred — needs-rust-capability` in the
+per-section tables below is now read as **"UI placeholder lives in the phase
+above; real functionality lives in Phase 8 (deferred)"**. The original tags
+are preserved so the audit trail of *why* the file was deferred remains
+intact.
+
+---
+
 ## ControlBar (24 files)
 
 | File | Tag | Reason |
