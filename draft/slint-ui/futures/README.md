@@ -5,11 +5,14 @@ This directory triages **every Moblin SwiftUI view file** in
 applies to the FCast Android sender Slint UI.
 
 The companion `phases/` directory contains the **executable plan**
-(Phases 0–27) for porting the applicable subset and surfacing every
-applicable-future / deferred feature as a UI-only placeholder. This
-`futures/` directory is the **reference / triage record** that documents what
-is *not* being ported, and why — so future contributors don't ask "did you
-miss `XYZView.swift`?".
+(Phases 0–48) for porting the applicable subset, surfacing every
+applicable-future / deferred feature as a UI-only placeholder, **and**
+(per the user's expanded directive) surfacing the previously-excluded
+Moblin categories as UI-only placeholders too. This `futures/` directory
+is the **reference / triage record** that documents the original
+applicability tagging, why each category was tagged that way, and how each
+entry now maps to a phase — so future contributors don't ask "did you miss
+`XYZView.swift`?".
 
 ## Files
 
@@ -25,7 +28,7 @@ Each Moblin view file is tagged with one of:
 | Tag | Meaning |
 |---|---|
 | **applicable** | Has an FCast sender equivalent and is already covered in `phases/` (Phase 0–4). |
-| **applicable → Phase N** | Promoted into a UI-only placeholder phase (5–27). The placeholder ships **UI without functionality**; Rust wiring is parked in Phase 8. |
+| **applicable → Phase N** | Promoted into a UI-only placeholder phase (5–48). The placeholder ships **UI without functionality**; Rust wiring is parked in Phase 8. |
 | **not-applicable — chat** | Streamer chat (Twitch/Kick/YouTube IRC, chat overlays, chat bots, TTS). FCast is a media-cast protocol with no chat surface. |
 | **not-applicable — navigation** | Streamer-broadcasting navigation overlay (location/route HUD). Not relevant to a cast remote. |
 | **not-applicable — replay** | Live-stream instant replay (rewind during broadcast). Not applicable to a one-way cast sender. |
@@ -38,43 +41,60 @@ Each Moblin view file is tagged with one of:
 | **not-applicable — moblin-internal** | Moblin-specific feature (Moblink relay, OpenAI integration, MetalPetal effects, etc.) with no FCast analogue. |
 | **deferred → Phase N** | Has potential FCast applicability but blocked on Rust media-graph capability that doesn't exist yet (camera capture, local recording, Wi-Fi Aware peer discovery). Promoted as a **UI-only placeholder** in the listed phase; functionality lands when Rust capability ships. |
 
-## UI-only roadmap (Phases 5–27)
+## UI-only roadmap (Phases 5–48)
 
 The user direction *"create a UI without functionality — placeholders for all
-applicable-future / deferred entries"* has been turned into a 23-phase plan
-(Phases 5–27). Every entry tagged `applicable-future` or
-`deferred — needs-rust-capability` in `NOT-APPLICABLE.md` is now mapped to a
-target phase under `phases/`.
+applicable-future / deferred entries"* has been turned into a 44-phase plan
+(Phases 5–48). Every entry in `NOT-APPLICABLE.md` is now mapped to a target
+phase under `phases/`, regardless of original applicability tag.
 
-The mapping is in `phases/PHASE-11-source-tracking.md` and individual
-`phases/PHASE-NN-*.md` files. Each placeholder phase ships:
+- `applicable-future` and `deferred — needs-rust-capability` map to
+  Phases 12–27.
+- Previously-excluded categories (chat, navigation, replay, right-side
+  overlays, streaming-platform, scene-widget, peripheral-hardware,
+  ios-target, iap, moblin-internal, mediaplayer, broadcast deferrals)
+  map to Phases 28–48. Reference-only Apple-target / IAP / Moblink /
+  OpenAI surfaces live under `senders/android/ui/pages/_apple/` and are
+  never imported by `main.slint`.
 
-- A `.slint` page or component.
+The mapping is in `phases/PHASE-11-source-tracking.md` and the per-phase
+files. Each placeholder phase ships:
+
+- A `.slint` page or component (or, for reference-only phases, a
+  `_apple/...` placeholder).
 - Inline `in-out property <[T]> mock-...` stub data.
 - Local-only state mutations (no Rust callbacks).
 - A `Panel` enum variant (where it's a sub-page).
 - Documented "What's NOT in this phase" section parking real wiring in
-  `futures/`.
+  Phase 8 (deferred).
+- A Moblin SwiftUI source excerpt + Slint primitive mapping section
+  (Phases 12–48).
 
-## Exclusion summary (per user direction)
+## Exclusion history (now relaxed for UI-only placeholders)
 
-The user explicitly excluded **four** Moblin UI categories from the FCast port:
+The original v1 scope explicitly excluded **four** Moblin UI categories
+from the FCast port:
 
 1. **chat** — all chat surfaces, including TTS / Talkback
 2. **navigation** — Moblin streaming-navigation overlays
 3. **replay** — live-stream instant replay
 4. **right-side overlays** — Moblin's broadcast right HUD layout
 
-The `NOT-APPLICABLE.md` table treats these four as **permanently excluded**
-(not "deferred"). Anyone wanting to add them must first revisit the v1 scope
-decision documented in `draft/slint-ui/phases/PHASE-7-settings-pages.md`
-(which already lists chat/scenes/widgets/ingests as "omitted by design") and
-in `draft/slint-ui/README.md`.
+The v2 user direction ("add Moblin categories chat / navigation / replay /
+right-side overlays and etc to phases. We need to create a UI without
+functionality.") **lifts those exclusions for the placeholder UI** while
+preserving the no-functionality discipline. Phases 28–48 now ship visible
+placeholders for every previously-excluded category. The `NOT-APPLICABLE.md`
+table still records the original tagging plus a phase mapping column.
+
+Functionality remains permanently parked — these placeholders are visual
+only. Reactivating any of them as functional features still requires a
+separate scope-change decision.
 
 ## Rust wiring (post-UI)
 
 Phase 8 is parked as a deferred placeholder. When the team is ready to
-graduate Phases 5–7 + 12–27 from "UI-only" to "wired", Phase 8 will be
+graduate Phases 5–7 + 12–48 from "UI-only" to "wired", Phase 8 will be
 re-expanded with:
 
 - `UiState` helper (`Weak<MainWindow>` only — no `Rc<VecModel>` in shared state).

@@ -15,14 +15,16 @@ categories (chat / navigation / replay / right-side overlays).
 
 ---
 
-## Promotion mapping (Phases 12–27)
+## Promotion mapping (Phases 12–48)
 
-Per user direction (*"create a UI without functionality — placeholders for all
-applicable-future / deferred entries"*), every entry tagged
-`applicable-future` or `deferred — needs-rust-capability` in the per-section
-tables below has been **promoted into a UI-only placeholder phase** under
-`phases/`. The phase ships `.slint` UI with inline stub data; functional
-integration is parked in Phase 8.
+Per the user's expanded direction (*"add Moblin categories chat / navigation /
+replay / right-side overlays and etc to phases"* — v2), **every entry** in the
+per-section tables below has been mapped to a UI-only placeholder phase under
+`phases/`, regardless of original applicability tag. Reference-only Apple-target
+/ IAP / Moblink / OpenAI surfaces live under
+`senders/android/ui/pages/_apple/` and are never imported by `main.slint`.
+
+### Applicable-future / deferred (Phases 12–27)
 
 | Cluster | Source files (representative) | Target phase |
 |---|---|---|
@@ -48,6 +50,43 @@ per-section tables below is now read as **"UI placeholder lives in the phase
 above; real functionality lives in Phase 8 (deferred)"**. The original tags
 are preserved so the audit trail of *why* the file was deferred remains
 intact.
+
+### Previously-excluded categories (Phases 28–48)
+
+The v1 scope excluded chat / navigation / replay / right-overlay; v2 lifts
+those exclusions for **UI placeholders only** and additionally adds
+placeholders for streaming-platform, scene-widget, peripheral-hardware,
+ios-target, iap, moblin-internal, mediaplayer and broadcast-deferral
+categories.
+
+| Original `not-applicable` tag | Source files (representative) | Target phase |
+|---|---|---|
+| chat | `Settings/Chat/*`, `View/Chat*`, `ControlBar/QuickButton/Chat/*` (21 files) | `PHASE-28-chat-overlay.md` |
+| streaming-platform (destinations) | `Settings/Streams/Stream/{Twitch,Kick,YouTube,Soop,Obs,RealtimeIrl,Osp}/*` | `PHASE-29-streaming-destinations.md` |
+| streaming-platform (streams root + wizards) | `Settings/Streams/{Streams,Stream,Wizard}/*` | `PHASE-30-streams-configuration-wizards.md` |
+| streaming-platform (protocols) | `Settings/Streams/Stream/{Rtmp,Srt,Rist,Whip,Srtla,Rtsp,Belabox}/*` | `PHASE-31-streaming-protocols.md` |
+| streaming-platform (ingests / servers) | `Settings/Ingests/*`, `Settings/{Rtmp,Rist,Srtla,Whip,Whep,Rtsp}Server/*` | `PHASE-32-ingests-servers.md` |
+| scene-widget (scenes editor) | `Settings/Scenes/*` | `PHASE-33-scenes-widgets-root.md` |
+| scene-widget (alerts) | `Settings/Widgets/Alerts/*` | `PHASE-34-widget-alerts.md` |
+| scene-widget (content widgets) | `Settings/Widgets/{Text,Image,Slideshow,Snapshot,QrCode,Map,Bingo,Wheel,Scoreboard,VTuber,PNGTuber,VideoSource,BrowserSource,Scene,Crop}/*` | `PHASE-35-widget-content.md` |
+| scene-widget (effects) | `Settings/Widgets/{Lut,Anamorphic,Dewarp,Opacity,Shape,RemoveBackground}/*` | `PHASE-36-widget-effects.md` |
+| scene-widget (wizards) | `Settings/Widgets/Wizard*` | `PHASE-37-widget-wizards.md` |
+| scene-widget (local overlays + position editors) | `Settings/Widgets/LocalOverlays/*`, `Utils/{Position,Size}EditView` | `PHASE-38-local-overlays.md` |
+| right-overlay | `View/Stream/Overlay/Right/*` (13 files) | `PHASE-39-right-side-broadcast-hud.md` |
+| replay | `Settings/Replay/*`, `View/Stream/Replay/*` (2 files) | `PHASE-40-replay-buffer.md` |
+| navigation | `View/Stream/Overlay/StreamOverlayNavigationView` (1 file) | `PHASE-41-streaming-navigation-overlay.md` |
+| peripheral-hardware (camera / Bluetooth) | `Settings/{DjiDevices,GoPro,PhoneCoolers,BlackSharkCoolers,CatPrinters,Gimbal,SelfieStick}/*` | `PHASE-42-camera-bluetooth-peripherals.md` |
+| peripheral-hardware (workout / controller / Tesla / external camera) | `Settings/{WorkoutDevices,GameControllers,Tesla,Camera/ExternalCamera*}/*` | `PHASE-43-workout-controller-tesla-peripherals.md` |
+| ios-target | `View/Watch/*`, `View/Mac/*`, `View/ExternalDisplay/*`, `Settings/{DeepLinkCreator,Keyboard,AppleSettings}/*` (13 files) | `PHASE-44-ios-watchos-mac-targets.md` (reference-only) |
+| iap | `Settings/Cosmetics/*` (1 file) | `PHASE-45-in-app-purchase.md` (reference-only) |
+| moblin-internal | `Settings/{Moblink,OpenAi,RemoteControl}/*` (4–5 files) | `PHASE-46-moblin-internal-integrations.md` (reference-only) |
+| mediaplayer / browser | `Settings/MediaPlayer/*`, `View/WebBrowser/*` (4 files) | `PHASE-47-mediaplayer-and-browser.md` |
+| broadcast deferrals (other) | `View/Stream/Overlay/{CameraLevel,DrawOnStream,FixedHorizon,Location,Left}*`, `View/Stream/StreamGridView`, `Settings/CommandCopy/*`, `Utils/PlaceholderView`, `View/ExternalDisplay/*` (~12 files) | `PHASE-48-other-broadcast-deferrals.md` |
+
+Tagging rule: a row remains `not-applicable` for the *functional port* but
+is concurrently marked **"placeholder phase: NN"** when a Slint placeholder
+exists. Reactivating any placeholder as functional remains a separate
+scope-change decision — these phases produce static UI only.
 
 ---
 
