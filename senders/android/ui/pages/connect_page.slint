@@ -6,13 +6,22 @@
 // SDK import path depth: ui/pages/ is 4 levels above the project root,
 // so the SDK common.slint path gains one extra `../` vs. main.slint.
 
-import { VerticalBox, ListView } from "std-widgets.slint";
-import { Bridge } from "../bridge.slint";
+import { VerticalBox, Spinner, LineEdit } from "std-widgets.slint";
+import { Bridge, ReceiverItem } from "../bridge.slint";
 import { DebugPage } from "debug_page.slint";
 import { Theme } from "../theme.slint";
 import { PrimaryButton } from "../components/buttons.slint";
 
 export component ConnectView inherits Rectangle {
+    // UI-only placeholder. Live data lives in `futures/` until Rust mDNS maps
+    // `DeviceInfo` → `ReceiverItem`.
+    in-out property <[ReceiverItem]> mock-devices: [
+        { name: "Living Room TV",     address: "192.168.1.50" },
+        { name: "Office Display",     address: "192.168.1.51" },
+        { name: "Kitchen Chromecast", address: "192.168.1.52:46899" },
+    ];
+    in-out property <bool> mock-empty: false;
+
     VerticalBox {
         alignment: start;
         Text {
@@ -23,39 +32,80 @@ export component ConnectView inherits Rectangle {
         }
 
         // ── Empty state: searching ────────────────────────────────────────
-        if Bridge.devices.length == 0: Rectangle {
+        if root.mock-empty || root.mock-devices.length == 0: Rectangle {
             height: 90px;
             border-radius: Theme.radius-card;
             background: Theme.surface-card;
 
-            Text {
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                color: Theme.text-secondary;
-                text: "Searching for receivers...";
+            HorizontalLayout {
+                alignment: center;
+                spacing: Theme.spacing-default;
+
+                Spinner {
+                    indeterminate: true;
+                    width: 24px;
+                    height: 24px;
+                }
+                Text {
+                    text: "Searching for receivers…";
+                    color: Theme.text-secondary;
+                    vertical-alignment: center;
+                }
             }
         }
 
         // ── Populated state: device list ──────────────────────────────────
-        if Bridge.devices.length > 0: ListView {
-            for device in Bridge.devices: Rectangle {
-                height: Theme.row-height;
+        if !root.mock-empty && root.mock-devices.length > 0: VerticalLayout {
+            spacing: Theme.spacing-default;
 
-                device_ta := TouchArea {
-                    clicked => Bridge.connect-receiver(device);
+            for device in root.mock-devices: Rectangle {
+                height: Theme.row-height + 18px;
+
+                ta := TouchArea {
+                    // UI-only — no real connect handler in this phase.
+                    clicked => { /* placeholder: would call connect-receiver(device.address) */ }
                 }
 
                 Rectangle {
                     width: parent.width - 10px;
-                    height: parent.height - 10px;
-                    background: device_ta.pressed ? Theme.accent-pressed : Theme.accent-muted;
+                    height: parent.height - 8px;
+                    background: ta.pressed ? Theme.accent-pressed : Theme.surface-card;
                     border-radius: Theme.radius-card;
-                    Text {
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        text: device;
+
+                    VerticalLayout {
+                        padding-left: Theme.padding-screen;
+                        padding-right: Theme.padding-screen;
+                        alignment: center;
+                        spacing: 2px;
+
+                        Text {
+                            text: device.name;
+                            color: Theme.text-primary;
+                            font-size: Theme.font-size-body;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: device.address;
+                            color: Theme.text-secondary;
+                            font-size: Theme.font-size-label;
+                            overflow: elide;
+                        }
                     }
                 }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: Theme.spacing-default;
+            ip-input := LineEdit {
+                placeholder-text: "Receiver IP address";
+                horizontal-stretch: 1;
+            }
+            PrimaryButton {
+                label: "Connect";
+                enabled: ip-input.text != "";
+                // UI-only — no real connect handler in this phase.
+                clicked => { /* placeholder */ }
             }
         }
 
