@@ -865,7 +865,7 @@ impl Application {
                 let _encoder_name = "Hardware"; // Blocked by P0-1: Placeholder until encoder selection works
                 let _network_info = self.local_address.as_ref().map(|a| a.to_string()).unwrap_or_default();
                 // Phase 8 (deferred): wire Bridge.status-items here from
-                // build_status_items(&receiver_name, encoder_name, &network_info).
+                // build_status_items(&_receiver_name, _encoder_name, &_network_info).
 
                 self.ui_weak.upgrade_in_event_loop(move |ui| {
                     ui.global::<Bridge>().invoke_change_state(AppState::Casting);
