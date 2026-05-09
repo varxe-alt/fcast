@@ -499,6 +499,31 @@ struct Application {
     our_source_url: Option<String>,
 }
 
+
+// Phase 8 (deferred): producer of Bridge.status-items. Currently unused —
+// CastingView renders mock-status-items inline. Keep this helper so the
+// Rust side of Phase 8 is a one-line wire-up.
+#[allow(dead_code)]
+fn build_status_items(receiver_name: &str, encoder: &str, network: &str) -> Vec<crate::StatusItem> {
+    vec![
+        crate::StatusItem {
+            label: "Receiver".into(),
+            value: receiver_name.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+        crate::StatusItem {
+            label: "Encoder".into(),
+            value: encoder.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+        crate::StatusItem {
+            label: "Network".into(),
+            value: network.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+    ]
+}
+
 impl Application {
     pub async fn new(
         ui_weak: slint::Weak<MainWindow>,
@@ -618,6 +643,7 @@ impl Application {
         match event {
             Event::EndSession { .. } => {
                 self.ui_weak.upgrade_in_event_loop(|ui| {
+                    // Phase 8 (deferred): clear Bridge.status-items here.
                     ui.global::<Bridge>()
                         .invoke_change_state(AppState::Disconnected);
                 })?;
@@ -713,6 +739,13 @@ impl Application {
                                                 ?new_source,
                                                 "The source on the receiver changed, disconnecting"
                                             );
+
+                                            self.ui_weak.upgrade_in_event_loop(|ui| {
+                                                // Phase 8 (deferred): clear Bridge.status-items here.
+                                                ui.global::<Bridge>()
+                                                    .invoke_change_state(AppState::Disconnected);
+                                            })?;
+
                                             self.stop_cast(false).await?;
                                         }
                                     }
@@ -732,6 +765,7 @@ impl Application {
             Event::CaptureCancelled => {
                 set_capture_active(false);
                 self.ui_weak.upgrade_in_event_loop(|ui| {
+                    // Phase 8 (deferred): clear Bridge.status-items here.
                     ui.global::<Bridge>()
                         .invoke_change_state(AppState::Disconnected);
                 })?;
@@ -827,7 +861,13 @@ impl Application {
                     30,
                 )?);
 
-                self.ui_weak.upgrade_in_event_loop(|ui| {
+                let _receiver_name = self.active_device.as_ref().map(|d| d.name()).unwrap_or_default();
+                let _encoder_name = "Hardware"; // Blocked by P0-1: Placeholder until encoder selection works
+                let _network_info = self.local_address.as_ref().map(|a| a.to_string()).unwrap_or_default();
+                // Phase 8 (deferred): wire Bridge.status-items here from
+                // build_status_items(&_receiver_name, _encoder_name, &_network_info).
+
+                self.ui_weak.upgrade_in_event_loop(move |ui| {
                     ui.global::<Bridge>().invoke_change_state(AppState::Casting);
                 })?;
             }
@@ -943,7 +983,23 @@ fn android_main(app: PlatformApp) {
     slint::android::init(app).unwrap();
 
     let ui = MainWindow::new().unwrap();
-    ui.global::<Bridge>().set_show_debug(cfg!(debug_assertions));
+
+
+    let mut actions = vec![
+        QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false },
+    ];
+    let show_debug = cfg!(debug_assertions);
+    ui.global::<Bridge>().set_show_debug(show_debug);
+    if show_debug {
+        actions.extend([
+            QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false },
+            QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false },
+            QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false },
+            QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false },
+        ]);
+    }
+    let model = std::rc::Rc::new(slint::VecModel::from(actions));
+    ui.global::<Bridge>().set_quick_actions(model.into());
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
@@ -980,97 +1036,60 @@ fn android_main(app: PlatformApp) {
         }
     });
 
-    ui.global::<Bridge>().on_scan_qr({
-        let android_app = app_clone.clone();
-        move || {
-            call_java_method_no_args(&android_app, JavaMethod::ScanQr);
-        }
-    });
-
-    ui.global::<Bridge>().on_start_migrated_server({
+    ui.global::<Bridge>().on_invoke_action({
+        let app_clone = app_clone.clone();
         let ui_weak = ui.as_weak();
-        move || {
-            let status = match start_migrated_command_server(LEGACY_COMMAND_BIND_ADDR) {
-                Ok(message) => format!("PASS {message}"),
-                Err(err) => format!("FAIL {err}"),
-            };
-            log_ui_test_status("start-migrated-server", &status);
-            if let Err(err) = ui_weak.upgrade_in_event_loop(move |ui| {
-                ui.global::<Bridge>().set_test_status(status.into());
-            }) {
-                error!(?err, "Failed to update migrated server status in UI");
-            }
-        }
-    });
-
-    ui.global::<Bridge>().on_test_legacy_getinfo({
-        let ui_weak = ui.as_weak();
-        move || {
-            if let Err(err) = ui_weak.upgrade_in_event_loop(|ui| {
-                ui.global::<Bridge>()
-                    .set_test_status("Running legacy getinfo test...".into());
-            }) {
-                error!(?err, "Failed to set running legacy getinfo status");
-            }
-
-            let ui_weak_for_result = ui_weak.clone();
-            std::thread::spawn(move || {
-                let status = run_legacy_http_getinfo_test(LEGACY_COMMAND_BIND_ADDR);
-                log_ui_test_status("legacy-getinfo", &status);
-                if let Err(err) = ui_weak_for_result.upgrade_in_event_loop(move |ui| {
-                    ui.global::<Bridge>().set_test_status(status.into());
-                }) {
-                    error!(?err, "Failed to update legacy getinfo status in UI");
+        move |id| {
+            let id_str = id.as_str();
+            match id_str {
+                "scan-qr" => {
+                    call_java_method_no_args(&app_clone, JavaMethod::ScanQr);
                 }
-            });
-        }
-    });
-
-    ui.global::<Bridge>().on_test_legacy_crossfade({
-        let ui_weak = ui.as_weak();
-        move || {
-            if let Err(err) = ui_weak.upgrade_in_event_loop(|ui| {
-                ui.global::<Bridge>()
-                    .set_test_status("Running legacy crossfade test...".into());
-            }) {
-                error!(?err, "Failed to set running legacy crossfade status");
-            }
-
-            let ui_weak_for_result = ui_weak.clone();
-            std::thread::spawn(move || {
-                let status = run_legacy_http_crossfade_test(LEGACY_COMMAND_BIND_ADDR);
-                log_ui_test_status("legacy-crossfade", &status);
-                if let Err(err) = ui_weak_for_result.upgrade_in_event_loop(move |ui| {
-                    ui.global::<Bridge>().set_test_status(status.into());
-                }) {
-                    error!(?err, "Failed to update legacy crossfade status in UI");
+                "migrated-server" => {
+                    let status = match start_migrated_command_server(LEGACY_COMMAND_BIND_ADDR) {
+                        Ok(message) => format!("PASS {message}"),
+                        Err(err) => format!("FAIL {err}"),
+                    };
+                    log_ui_test_status("start-migrated-server", &status);
+                    let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                        ui.global::<Bridge>().set_test_status(status.into());
+                    });
                 }
-            });
-        }
-    });
-
-    ui.global::<Bridge>().on_test_smoke_graph({
-        let ui_weak = ui.as_weak();
-        move || {
-            if let Err(err) = ui_weak.upgrade_in_event_loop(|ui| {
-                ui.global::<Bridge>()
-                    .set_test_status("Running graph smoke test...".into());
-            }) {
-                error!(?err, "Failed to set running smoke test status");
-            }
-
-            let ui_weak_for_result = ui_weak.clone();
-            std::thread::spawn(move || {
-                let status = run_graph_smoke_test();
-                log_ui_test_status("graph-smoke", &status);
-                if let Err(err) = ui_weak_for_result.upgrade_in_event_loop(move |ui| {
-                    ui.global::<Bridge>().set_test_status(status.into());
-                }) {
-                    error!(?err, "Failed to update smoke test status in UI");
+                "test-getinfo" => {
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running legacy getinfo test...".into()));
+                    let ui_weak_clone = ui_weak.clone();
+                    std::thread::spawn(move || {
+                        let status = run_legacy_http_getinfo_test(LEGACY_COMMAND_BIND_ADDR);
+                        log_ui_test_status("legacy-getinfo", &status);
+                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    });
                 }
-            });
+                "test-crossfade" => {
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running legacy crossfade test...".into()));
+                    let ui_weak_clone = ui_weak.clone();
+                    std::thread::spawn(move || {
+                        let status = run_legacy_http_crossfade_test(LEGACY_COMMAND_BIND_ADDR);
+                        log_ui_test_status("legacy-crossfade", &status);
+                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    });
+                }
+                "test-smoke" => {
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running graph smoke test...".into()));
+                    let ui_weak_clone = ui_weak.clone();
+                    std::thread::spawn(move || {
+                        let status = run_graph_smoke_test();
+                        log_ui_test_status("graph-smoke", &status);
+                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    });
+                }
+                _ => {}
+            }
         }
     });
+
+
+
+
 
     let ui_weak = ui.as_weak();
 
