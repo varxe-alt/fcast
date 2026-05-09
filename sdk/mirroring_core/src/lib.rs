@@ -56,6 +56,10 @@ pub enum VideoSource {
     CgDisplay { id: i32, name: String },
     #[cfg(target_os = "windows")]
     D3d11Monitor { name: String, handle: u64 },
+    D3d12Monitor {
+        name: String,
+        handle: u64,
+    },
     #[cfg(target_os = "android")]
     Source(gst_app::AppSrc),
 }
@@ -72,7 +76,7 @@ impl VideoSource {
             #[cfg(target_os = "macos")]
             VideoSource::CgDisplay { name, .. } => name.clone(),
             #[cfg(target_os = "windows")]
-            VideoSource::D3d11Monitor { name, .. } => name.clone(),
+            VideoSource::D3d12Monitor { name, .. } => name.clone(),
             #[cfg(target_os = "android")]
             VideoSource::Source(_) => "Default".to_owned(),
         }
@@ -153,13 +157,6 @@ pub enum RootDirType {
     Pictures,
     Videos,
     Music,
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-#[derive(Debug, Deserialize)]
-pub struct Release {
-    pub version: String,
-    pub file: String,
 }
 
 #[derive(Debug)]
@@ -255,7 +252,7 @@ pub enum Event {
         allow_ipv6: bool,
     },
     #[cfg(any(target_os = "macos", target_os = "windows"))]
-    UpdateAvailable(Release),
+    UpdateAvailable(app_updater::Release),
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     UpdateApplication,
     #[cfg(not(target_os = "android"))]
