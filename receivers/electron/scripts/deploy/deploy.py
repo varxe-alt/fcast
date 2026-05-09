@@ -56,14 +56,14 @@ def copy_artifacts_to_local_cache():
 
 def sync_local_cache():
     print('Syncing local cache with s3...')
-    local_files = []
+    local_files = set()
     for root, _, files in os.walk(LOCAL_CACHE_DIR):
         for filename in files:
             rel_path = os.path.relpath(os.path.join(root, filename), LOCAL_CACHE_DIR)
             version = os.path.relpath(rel_path, 'electron/').split('/')[0]
 
             if version in s3.get_versions() or filename == RELEASES_JSON:
-                local_files.append(rel_path)
+                local_files.add(rel_path)
             elif filename != RELEASES_JSON:
                 print(f'Purging file from local cache: {rel_path}')
                 os.remove(os.path.join(root, filename))
@@ -86,8 +86,9 @@ def upload_local_cache():
             rel_path = os.path.relpath(full_path, LOCAL_CACHE_DIR)
             local_files.append(rel_path)
 
+    bucket_files = set(map(lambda x: x['Key'], s3.get_bucket_files()))
     for file_path in local_files:
-        if file_path not in map(lambda x: x['Key'], s3.get_bucket_files()) or os.path.basename(file_path) == RELEASES_JSON:
+        if file_path not in bucket_files or os.path.basename(file_path) == RELEASES_JSON:
             s3.upload_file(os.path.join(LOCAL_CACHE_DIR, file_path), file_path)
 
 # TODO: WIP
