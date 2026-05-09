@@ -8,8 +8,23 @@ use jni::{
 };
 use mcore::{transmission::WhepSink, DeviceEvent, Event, ShouldQuit, SourceConfig};
 use parking_lot::{Condvar, Mutex};
+#[cfg(target_os = "android")]
+use serde_json::{json, Value};
 use std::{collections::HashMap, net::Ipv6Addr, sync::Arc};
+#[cfg(target_os = "android")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, error};
+#[cfg(target_os = "android")]
+use tracing::{info, warn};
+
+pub mod migration;
+
+#[cfg(target_os = "android")]
+type PlatformApp = slint::android::AndroidApp;
+
+#[cfg(not(target_os = "android"))]
+#[derive(Clone, Debug, Default)]
+struct PlatformApp;
 
 lazy_static::lazy_static! {
     pub static ref GLOB_EVENT_CHAN: (crossbeam_channel::Sender<Event>, crossbeam_channel::Receiver<Event>)
@@ -17,6 +32,9 @@ lazy_static::lazy_static! {
     pub static ref FRAME_PAIR: (Mutex<Option<gst_video::VideoFrame<gst_video::video_frame::Writable>>>, Condvar) = (Mutex::new(None), Condvar::new());
     pub static ref FRAME_POOL: Mutex<gst_video::VideoBufferPool> = Mutex::new(gst_video::VideoBufferPool::new());
 }
+
+#[cfg(target_os = "android")]
+static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 slint::include_modules!();
 
@@ -28,13 +46,418 @@ macro_rules! log_err {
     };
 }
 
+#[cfg(target_os = "android")]
+const MIGRATION_COMMAND_BIND_ENV: &str = "MIGRATION_COMMAND_BIND";
+#[cfg(target_os = "android")]
+const LEGACY_COMMAND_BIND_ADDR: &str = "0.0.0.0:8080";
+
+#[cfg(target_os = "android")]
+fn ensure_gstreamer_initialized() -> std::result::Result<(), String> {
+    use std::sync::OnceLock;
+
+    static GST_INIT: OnceLock<std::result::Result<(), String>> = OnceLock::new();
+    GST_INIT
+        .get_or_init(|| {
+            gst::init().map_err(|err| format!("Failed to initialize GStreamer: {err}"))
+        })
+        .clone()
+}
+
+#[cfg(not(target_os = "android"))]
+fn ensure_gstreamer_initialized() -> std::result::Result<(), String> {
+    gst::init().map_err(|err| format!("Failed to initialize GStreamer: {err}"))
+}
+
+#[cfg(target_os = "android")]
+fn set_capture_active(active: bool) {
+    CAPTURE_ACTIVE.store(active, Ordering::SeqCst);
+    if !active {
+        let (lock, cvar) = &*FRAME_PAIR;
+        let mut frame = lock.lock();
+        *frame = None;
+        cvar.notify_all();
+    }
+}
+
+#[cfg(target_os = "android")]
+fn command_probe_addr(bind_addr: &str) -> String {
+    if let Some(port) = bind_addr.strip_prefix("0.0.0.0:") {
+        return format!("127.0.0.1:{port}");
+    }
+    if let Some(port) = bind_addr.strip_prefix("[::]:") {
+        return format!("[::1]:{port}");
+    }
+    bind_addr.to_string()
+}
+
+#[cfg(target_os = "android")]
+fn send_http_request(
+    bind_addr: &str,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+) -> std::result::Result<String, String> {
+    use std::io::{Read, Write};
+
+    let connect_addr = command_probe_addr(bind_addr);
+    let mut stream = std::net::TcpStream::connect(&connect_addr)
+        .map_err(|err| format!("Failed to connect to migrated server {connect_addr}: {err}"))?;
+
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(3)));
+    let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(3)));
+
+    let body_text = body.unwrap_or("");
+    let request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: {connect_addr}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body_text}",
+        body_text.len()
+    );
+
+    stream
+        .write_all(request.as_bytes())
+        .map_err(|err| format!("Failed to write HTTP request to migrated server: {err}"))?;
+    stream
+        .flush()
+        .map_err(|err| format!("Failed to flush HTTP request to migrated server: {err}"))?;
+
+    let mut response_bytes = Vec::new();
+    stream
+        .read_to_end(&mut response_bytes)
+        .map_err(|err| format!("Failed to read HTTP response from migrated server: {err}"))?;
+
+    let response = String::from_utf8_lossy(&response_bytes);
+    let mut sections = response.splitn(2, "\r\n\r\n");
+    let headers = sections.next().unwrap_or("");
+    let response_body = sections.next().unwrap_or("").to_string();
+    let status_line = headers.lines().next().unwrap_or("HTTP/1.1 000");
+    if !status_line.contains(" 200 ") {
+        return Err(format!(
+            "Migrated server returned non-200 status: {status_line}; body={response_body}"
+        ));
+    }
+    Ok(response_body)
+}
+
+#[cfg(target_os = "android")]
+fn start_migrated_command_server(bind_addr: &str) -> std::result::Result<String, String> {
+    ensure_gstreamer_initialized()?;
+    std::env::set_var(MIGRATION_COMMAND_BIND_ENV, bind_addr);
+    crate::migration::runtime::start_graph_runtime()
+        .map_err(|err| format!("Failed to start migrated graph runtime: {err}"))?;
+    let health_body = send_http_request(bind_addr, "GET", "/health", None)?;
+    Ok(format!(
+        "migrated server active bind={bind_addr} health={}",
+        health_body.trim()
+    ))
+}
+
+#[cfg(target_os = "android")]
+fn run_graph_http_command(bind_addr: &str, payload: Value) -> std::result::Result<Value, String> {
+    let payload_json = payload.to_string();
+    let body = send_http_request(bind_addr, "POST", "/command", Some(&payload_json))?;
+    let response: Value = serde_json::from_str(&body)
+        .map_err(|err| format!("Failed to parse migrated server response: {err}; raw={body}"))?;
+    let result = response
+        .get("result")
+        .ok_or_else(|| format!("Missing result in migrated server response: {body}"))?;
+
+    if let Some(err) = result.get("error").and_then(Value::as_str) {
+        return Err(format!("Migrated server command error: {err}"));
+    }
+
+    Ok(response)
+}
+
+#[cfg(target_os = "android")]
+fn run_graph_command(action: &str, params: Value) -> std::result::Result<Value, String> {
+    let payload = json!({ action: params });
+    let response_json = crate::migration::runtime::try_handle_command_json(&payload.to_string());
+    let root: Value = serde_json::from_str(&response_json)
+        .map_err(|err| format!("{action} parse failure: {err}; raw={response_json}"))?;
+    let result = root
+        .get("result")
+        .cloned()
+        .ok_or_else(|| format!("{action} missing result field; raw={response_json}"))?;
+    match &result {
+        Value::String(ok) if ok == "success" => Ok(result),
+        Value::Object(map) => {
+            if let Some(err) = map.get("error").and_then(Value::as_str) {
+                Err(format!("{action} error: {err}"))
+            } else {
+                Ok(result)
+            }
+        }
+        _ => Err(format!(
+            "{action} unsupported result shape: {response_json}"
+        )),
+    }
+}
+
+#[cfg(target_os = "android")]
+fn run_legacy_http_getinfo_test(bind_addr: &str) -> String {
+    if let Err(err) = start_migrated_command_server(bind_addr) {
+        return format!("FAIL {err}");
+    }
+
+    match run_graph_http_command(bind_addr, json!({ "getinfo": {} })) {
+        Ok(info) => {
+            let node_count = info
+                .get("result")
+                .and_then(|result| result.get("info"))
+                .and_then(|info| info.get("nodes"))
+                .and_then(Value::as_object)
+                .map(|nodes| nodes.len())
+                .unwrap_or(0);
+            format!("PASS legacy getinfo (/command) nodes={node_count}")
+        }
+        Err(err) => format!("FAIL {err}"),
+    }
+}
+
+#[cfg(target_os = "android")]
+fn run_legacy_http_crossfade_test(bind_addr: &str) -> String {
+    if let Err(err) = start_migrated_command_server(bind_addr) {
+        return format!("FAIL {err}");
+    }
+
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0);
+    let mixer_id = format!("legacy-channel-{millis}");
+    let destination_id = format!("legacy-output-{millis}");
+    let link_id = format!("{mixer_id}->{destination_id}-{millis}");
+    let slot_source_id = format!("legacy-source-slot-{millis}");
+    let slot_link_id = format!("{slot_source_id}->{mixer_id}-{millis}");
+
+    let mut mixer_created = false;
+    let mut destination_created = false;
+    let mut slot_source_created = false;
+
+    let result = (|| -> std::result::Result<String, String> {
+        // Derived from scripts_test_api/crossfade.py bootstrap sequence.
+        run_graph_http_command(
+            bind_addr,
+            json!({
+                "createmixer": {
+                    "id": mixer_id.clone(),
+                    "config": {
+                        "width": 1280,
+                        "height": 720,
+                        "sample-rate": 44100
+                    }
+                }
+            }),
+        )?;
+        mixer_created = true;
+
+        run_graph_http_command(
+            bind_addr,
+            json!({
+                "createdestination": {
+                    "id": destination_id.clone(),
+                    "family": "LocalPlayback"
+                }
+            }),
+        )?;
+        destination_created = true;
+
+        run_graph_http_command(
+            bind_addr,
+            json!({
+                "connect": {
+                    "link_id": link_id.clone(),
+                    "src_id": mixer_id.clone(),
+                    "sink_id": destination_id.clone()
+                }
+            }),
+        )?;
+        run_graph_http_command(
+            bind_addr,
+            json!({
+                "start": {
+                    "id": destination_id.clone()
+                }
+            }),
+        )?;
+        run_graph_http_command(
+            bind_addr,
+            json!({
+                "start": {
+                    "id": mixer_id.clone()
+                }
+            }),
+        )?;
+
+        run_graph_http_command(
+            bind_addr,
+            json!({
+                "createvideogenerator": {
+                    "id": slot_source_id.clone()
+                }
+            }),
+        )?;
+        slot_source_created = true;
+
+        run_graph_http_command(
+            bind_addr,
+            json!({
+                "connect": {
+                    "link_id": slot_link_id.clone(),
+                    "src_id": slot_source_id.clone(),
+                    "sink_id": mixer_id.clone(),
+                    "audio": false,
+                    "video": true,
+                    "config": {
+                        "video::zorder": 2,
+                        "video::alpha": 1.0,
+                        "video::width": 1280,
+                        "video::height": 720,
+                        "video::sizing-policy": "keep-aspect-ratio"
+                    }
+                }
+            }),
+        )?;
+        run_graph_http_command(
+            bind_addr,
+            json!({
+                "start": {
+                    "id": slot_source_id.clone()
+                }
+            }),
+        )?;
+
+        let info = run_graph_http_command(bind_addr, json!({ "getinfo": {} }))?;
+        let node_count = info
+            .get("result")
+            .and_then(|result| result.get("info"))
+            .and_then(|info| info.get("nodes"))
+            .and_then(Value::as_object)
+            .map(|nodes| nodes.len())
+            .unwrap_or(0);
+        Ok(format!(
+            "legacy crossfade bootstrap ok mixer={mixer_id} destination={destination_id} slot_source={slot_source_id} nodes={node_count}"
+        ))
+    })();
+
+    if slot_source_created {
+        let _ = run_graph_http_command(
+            bind_addr,
+            json!({
+                "remove": {
+                    "id": slot_source_id.clone()
+                }
+            }),
+        );
+    }
+    if destination_created {
+        let _ = run_graph_http_command(
+            bind_addr,
+            json!({
+                "remove": {
+                    "id": destination_id.clone()
+                }
+            }),
+        );
+    }
+    if mixer_created {
+        let _ = run_graph_http_command(
+            bind_addr,
+            json!({
+                "remove": {
+                    "id": mixer_id.clone()
+                }
+            }),
+        );
+    }
+
+    match result {
+        Ok(success) => format!("PASS {success}"),
+        Err(err) => format!("FAIL {err}"),
+    }
+}
+
+#[cfg(target_os = "android")]
+fn run_graph_smoke_test() -> String {
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0);
+    let source_id = format!("slint-smoke-videogen-{millis}");
+    let mixer_id = format!("slint-smoke-mixer-{millis}");
+    let link_id = format!("slint-smoke-link-{millis}");
+
+    let mut source_created = false;
+    let mut mixer_created = false;
+    let result = (|| -> std::result::Result<String, String> {
+        run_graph_command("createvideogenerator", json!({ "id": source_id.clone() }))?;
+        source_created = true;
+
+        run_graph_command(
+            "createmixer",
+            json!({
+                "id": mixer_id.clone(),
+                "audio": false,
+                "video": true
+            }),
+        )?;
+        mixer_created = true;
+
+        run_graph_command(
+            "connect",
+            json!({
+                "link_id": link_id.clone(),
+                "src_id": source_id.clone(),
+                "sink_id": mixer_id.clone(),
+                "audio": false,
+                "video": true
+            }),
+        )?;
+        run_graph_command("start", json!({ "id": mixer_id.clone() }))?;
+        run_graph_command("start", json!({ "id": source_id.clone() }))?;
+
+        let info = run_graph_command("getinfo", json!({}))?;
+        let node_count = info
+            .get("info")
+            .and_then(|info| info.get("nodes"))
+            .and_then(Value::as_object)
+            .map(|nodes| nodes.len())
+            .unwrap_or(0);
+
+        Ok(format!(
+            "smoke ok source={source_id} mixer={mixer_id} link={link_id} nodes={node_count}"
+        ))
+    })();
+
+    if source_created {
+        let _ = run_graph_command("remove", json!({ "id": source_id.clone() }));
+    }
+    if mixer_created {
+        let _ = run_graph_command("remove", json!({ "id": mixer_id.clone() }));
+    }
+
+    match result {
+        Ok(success) => format!("PASS {success}"),
+        Err(err) => format!("FAIL {err}"),
+    }
+}
+
+#[cfg(target_os = "android")]
+fn log_ui_test_status(test_name: &'static str, status: &str) {
+    if status.starts_with("PASS") {
+        info!(test = test_name, status = status, "UI test completed");
+    } else {
+        warn!(test = test_name, status = status, "UI test failed");
+    }
+}
+
 #[derive(Debug)]
 enum JavaMethod {
     StopCapture,
     ScanQr,
 }
 
-fn call_java_method_no_args(app: &slint::android::AndroidApp, method: JavaMethod) {
+#[cfg(target_os = "android")]
+fn call_java_method_no_args(app: &PlatformApp, method: JavaMethod) {
     let vm = unsafe {
         let ptr = app.vm_as_ptr() as *mut jni::sys::JavaVM;
         assert!(!ptr.is_null(), "JavaVM ptr is null");
@@ -60,6 +483,9 @@ fn call_java_method_no_args(app: &slint::android::AndroidApp, method: JavaMethod
     }
 }
 
+#[cfg(not(target_os = "android"))]
+fn call_java_method_no_args(_app: &PlatformApp, _method: JavaMethod) {}
+
 struct Application {
     ui_weak: slint::Weak<MainWindow>,
     event_tx: tokio::sync::mpsc::UnboundedSender<Event>,
@@ -68,16 +494,41 @@ struct Application {
     active_device: Option<Arc<dyn device::CastingDevice>>,
     current_device_id: usize,
     local_address: Option<fcast_sender_sdk::IpAddr>,
-    android_app: slint::android::AndroidApp,
+    android_app: PlatformApp,
     tx_sink: Option<WhepSink>,
     our_source_url: Option<String>,
+}
+
+
+// Phase 8 (deferred): producer of Bridge.status-items. Currently unused —
+// CastingView renders mock-status-items inline. Keep this helper so the
+// Rust side of Phase 8 is a one-line wire-up.
+#[allow(dead_code)]
+fn build_status_items(receiver_name: &str, encoder: &str, network: &str) -> Vec<crate::StatusItem> {
+    vec![
+        crate::StatusItem {
+            label: "Receiver".into(),
+            value: receiver_name.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+        crate::StatusItem {
+            label: "Encoder".into(),
+            value: encoder.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+        crate::StatusItem {
+            label: "Network".into(),
+            value: network.into(),
+            severity: crate::StatusSeverity::Info,
+        },
+    ]
 }
 
 impl Application {
     pub async fn new(
         ui_weak: slint::Weak<MainWindow>,
         event_tx: tokio::sync::mpsc::UnboundedSender<Event>,
-        android_app: slint::android::AndroidApp,
+        android_app: PlatformApp,
     ) -> Result<Self> {
         std::thread::spawn({
             let event_tx = event_tx.clone();
@@ -192,6 +643,7 @@ impl Application {
         match event {
             Event::EndSession { .. } => {
                 self.ui_weak.upgrade_in_event_loop(|ui| {
+                    // Phase 8 (deferred): clear Bridge.status-items here.
                     ui.global::<Bridge>()
                         .invoke_change_state(AppState::Disconnected);
                 })?;
@@ -205,7 +657,10 @@ impl Application {
                     error!("No device with name `{device_name}` found");
                 }
             }
-            Event::SignallerStarted { bound_port_v4, bound_port_v6 } => {
+            Event::SignallerStarted {
+                bound_port_v4,
+                bound_port_v6,
+            } => {
                 let Some(addr) = self.local_address.as_ref() else {
                     error!("Local address is missing");
                     return Ok(ShouldQuit::No);
@@ -284,6 +739,13 @@ impl Application {
                                                 ?new_source,
                                                 "The source on the receiver changed, disconnecting"
                                             );
+
+                                            self.ui_weak.upgrade_in_event_loop(|ui| {
+                                                // Phase 8 (deferred): clear Bridge.status-items here.
+                                                ui.global::<Bridge>()
+                                                    .invoke_change_state(AppState::Disconnected);
+                                            })?;
+
                                             self.stop_cast(false).await?;
                                         }
                                     }
@@ -291,18 +753,26 @@ impl Application {
                                 }
                             }
                         }
+                        _ => {}
                     }
                 }
             }
-            Event::CaptureStopped => (),
+            #[cfg(target_os = "android")]
+            Event::CaptureStopped => {
+                set_capture_active(false);
+            }
+            #[cfg(target_os = "android")]
             Event::CaptureCancelled => {
+                set_capture_active(false);
                 self.ui_weak.upgrade_in_event_loop(|ui| {
+                    // Phase 8 (deferred): clear Bridge.status-items here.
                     ui.global::<Bridge>()
                         .invoke_change_state(AppState::Disconnected);
                 })?;
 
                 self.stop_cast(false).await?;
             }
+            #[cfg(target_os = "android")]
             Event::QrScanResult(result) => {
                 match fcast_sender_sdk::device::device_info_from_url(result) {
                     Some(device_info) => {
@@ -313,7 +783,9 @@ impl Application {
                     }
                 }
             }
+            #[cfg(target_os = "android")]
             Event::CaptureStarted => {
+                set_capture_active(true);
                 let appsrc = gst_app::AppSrc::builder()
                     .caps(
                         &gst_video::VideoCapsBuilder::new()
@@ -334,11 +806,18 @@ impl Application {
                             let frame = {
                                 let (lock, cvar) = &*FRAME_PAIR;
                                 let mut frame = lock.lock();
-                                while (*frame).is_none() {
-                                    cvar.wait(&mut frame);
+                                while (*frame).is_none()
+                                    && CAPTURE_ACTIVE.load(Ordering::SeqCst)
+                                {
+                                    cvar.wait_for(&mut frame, std::time::Duration::from_millis(100));
                                 }
-
-                                (*frame).take().unwrap()
+                                (*frame).take()
+                            };
+                            let Some(frame) = frame else {
+                                if !CAPTURE_ACTIVE.load(Ordering::SeqCst) {
+                                    let _ = appsrc.end_of_stream();
+                                }
+                                return;
                             };
 
                             use gst_video::prelude::*;
@@ -382,10 +861,17 @@ impl Application {
                     30,
                 )?);
 
-                self.ui_weak.upgrade_in_event_loop(|ui| {
+                let _receiver_name = self.active_device.as_ref().map(|d| d.name()).unwrap_or_default();
+                let _encoder_name = "Hardware"; // Blocked by P0-1: Placeholder until encoder selection works
+                let _network_info = self.local_address.as_ref().map(|a| a.to_string()).unwrap_or_default();
+                // Phase 8 (deferred): wire Bridge.status-items here from
+                // build_status_items(&_receiver_name, _encoder_name, &_network_info).
+
+                self.ui_weak.upgrade_in_event_loop(move |ui| {
                     ui.global::<Bridge>().invoke_change_state(AppState::Casting);
                 })?;
             }
+            #[cfg(target_os = "android")]
             Event::StartCast {
                 scale_width,
                 scale_height,
@@ -433,6 +919,16 @@ impl Application {
                         .invoke_change_state(AppState::WaitingForMedia);
                 })?;
             }
+            #[cfg(not(target_os = "android"))]
+            Event::StartCast {
+                scale_width: _,
+                scale_height: _,
+                max_framerate: _,
+                ..
+            } => {
+                debug!("Ignoring StartCast in non-android build of android-sender");
+            }
+            _ => {}
         }
 
         Ok(ShouldQuit::No)
@@ -445,8 +941,12 @@ impl Application {
         tracing_gstreamer::integrate_events();
         gst::log::remove_default_log_function();
         gst::log::set_default_threshold(gst::DebugLevel::Fixme);
-        gst::init().unwrap();
+        ensure_gstreamer_initialized()
+            .map_err(|err| anyhow::anyhow!("Failed to initialize GStreamer: {err}"))?;
         debug!("GStreamer version: {:?}", gst::version());
+        if let Err(err) = crate::migration::runtime::start_graph_runtime() {
+            error!(?err, "Failed to start migrated graph runtime");
+        }
 
         // self.add_or_update_device(fcast_sender_sdk::device::DeviceInfo::fcast("Localhost for android emulator".to_owned(), vec![fcast_sender_sdk::IpAddr::v4(10, 0, 2, 2)], 46899))?;
 
@@ -462,14 +962,18 @@ impl Application {
         }
 
         debug!("Quitting event loop");
+        if let Err(err) = crate::migration::runtime::shutdown_graph_runtime() {
+            error!(?err, "Failed to shut down migrated graph runtime");
+        }
 
         Ok(())
     }
 }
 
 // TODO: handle errs
+#[cfg(target_os = "android")]
 #[unsafe(no_mangle)]
-fn android_main(app: slint::android::AndroidApp) {
+fn android_main(app: PlatformApp) {
     android_logger::init_once(
         android_logger::Config::default().with_max_level(log::LevelFilter::Debug),
     );
@@ -479,6 +983,23 @@ fn android_main(app: slint::android::AndroidApp) {
     slint::android::init(app).unwrap();
 
     let ui = MainWindow::new().unwrap();
+
+
+    let mut actions = vec![
+        QuickAction { id: "scan-qr".into(), title: "Scan QR".into(), enabled: true, active: false },
+    ];
+    let show_debug = cfg!(debug_assertions);
+    ui.global::<Bridge>().set_show_debug(show_debug);
+    if show_debug {
+        actions.extend([
+            QuickAction { id: "migrated-server".into(), title: "Start Server".into(), enabled: true, active: false },
+            QuickAction { id: "test-getinfo".into(),    title: "GetInfo".into(),      enabled: true, active: false },
+            QuickAction { id: "test-crossfade".into(),  title: "Crossfade".into(),    enabled: true, active: false },
+            QuickAction { id: "test-smoke".into(),      title: "Smoke Graph".into(),  enabled: true, active: false },
+        ]);
+    }
+    let model = std::rc::Rc::new(slint::VecModel::from(actions));
+    ui.global::<Bridge>().set_quick_actions(model.into());
 
     let runtime = tokio::runtime::Runtime::new().unwrap();
 
@@ -515,12 +1036,60 @@ fn android_main(app: slint::android::AndroidApp) {
         }
     });
 
-    ui.global::<Bridge>().on_scan_qr({
-        let android_app = app_clone.clone();
-        move || {
-            call_java_method_no_args(&android_app, JavaMethod::ScanQr);
+    ui.global::<Bridge>().on_invoke_action({
+        let app_clone = app_clone.clone();
+        let ui_weak = ui.as_weak();
+        move |id| {
+            let id_str = id.as_str();
+            match id_str {
+                "scan-qr" => {
+                    call_java_method_no_args(&app_clone, JavaMethod::ScanQr);
+                }
+                "migrated-server" => {
+                    let status = match start_migrated_command_server(LEGACY_COMMAND_BIND_ADDR) {
+                        Ok(message) => format!("PASS {message}"),
+                        Err(err) => format!("FAIL {err}"),
+                    };
+                    log_ui_test_status("start-migrated-server", &status);
+                    let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+                        ui.global::<Bridge>().set_test_status(status.into());
+                    });
+                }
+                "test-getinfo" => {
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running legacy getinfo test...".into()));
+                    let ui_weak_clone = ui_weak.clone();
+                    std::thread::spawn(move || {
+                        let status = run_legacy_http_getinfo_test(LEGACY_COMMAND_BIND_ADDR);
+                        log_ui_test_status("legacy-getinfo", &status);
+                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    });
+                }
+                "test-crossfade" => {
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running legacy crossfade test...".into()));
+                    let ui_weak_clone = ui_weak.clone();
+                    std::thread::spawn(move || {
+                        let status = run_legacy_http_crossfade_test(LEGACY_COMMAND_BIND_ADDR);
+                        log_ui_test_status("legacy-crossfade", &status);
+                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    });
+                }
+                "test-smoke" => {
+                    let _ = ui_weak.upgrade_in_event_loop(|ui| ui.global::<Bridge>().set_test_status("Running graph smoke test...".into()));
+                    let ui_weak_clone = ui_weak.clone();
+                    std::thread::spawn(move || {
+                        let status = run_graph_smoke_test();
+                        log_ui_test_status("graph-smoke", &status);
+                        let _ = ui_weak_clone.upgrade_in_event_loop(move |ui| ui.global::<Bridge>().set_test_status(status.into()));
+                    });
+                }
+                _ => {}
+            }
         }
     });
+
+
+
+
 
     let ui_weak = ui.as_weak();
 
@@ -536,18 +1105,49 @@ fn android_main(app: slint::android::AndroidApp) {
 
     ui.run().unwrap();
 
-    runtime.spawn(async move {
-        event_tx.send(Event::Quit).unwrap();
-        app_jh.await.unwrap();
+    runtime.block_on(async move {
+        if let Err(err) = event_tx.send(Event::Quit) {
+            error!(?err, "Failed to send quit event");
+        }
+        if let Err(err) = app_jh.await {
+            error!(?err, "Android application task join failed");
+        }
     });
 
     debug!("Finished");
 }
 
+#[cfg(target_os = "android")]
 fn jstring_to_string<'local>(env: &mut jni::JNIEnv<'local>, s: &JString<'local>) -> Result<String> {
     Ok(env.get_string(s)?.to_string_lossy().to_string())
 }
 
+#[cfg(target_os = "android")]
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeGraphCommand<'local>(
+    mut env: jni::JNIEnv<'local>,
+    _class: jni::objects::JClass<'local>,
+    command_json: jni::objects::JString<'local>,
+) -> jni::sys::jstring {
+    let response = match jstring_to_string(&mut env, &command_json) {
+        Ok(json) => crate::migration::runtime::try_handle_command_json(&json),
+        Err(err) => {
+            error!(?err, "Failed to decode graph command payload from Java");
+            crate::migration::runtime::try_handle_command_json("")
+        }
+    };
+
+    match env.new_string(response) {
+        Ok(jstr) => jstr.into_raw(),
+        Err(err) => {
+            error!(?err, "Failed to allocate Java response string");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_org_fcast_android_sender_FCastDiscoveryListener_serviceFound<'local>(
@@ -652,6 +1252,7 @@ pub extern "C" fn Java_org_fcast_android_sender_FCastDiscoveryListener_serviceFo
     );
 }
 
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_org_fcast_android_sender_FCastDiscoveryListener_serviceLost<'local>(
@@ -668,6 +1269,7 @@ pub extern "C" fn Java_org_fcast_android_sender_FCastDiscoveryListener_serviceLo
     }
 }
 
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeCaptureStarted<'local>(
@@ -681,6 +1283,7 @@ pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeCaptureStarte
     );
 }
 
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeCaptureStopped<'local>(
@@ -694,6 +1297,7 @@ pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeCaptureStoppe
     );
 }
 
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeCaptureCancelled<'local>(
@@ -707,6 +1311,7 @@ pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeCaptureCancel
     );
 }
 
+#[cfg(target_os = "android")]
 fn process_frame<'local>(
     env: jni::JNIEnv<'local>,
     width: jni::sys::jint,
@@ -792,15 +1397,23 @@ fn process_frame<'local>(
     }
 
     let mut frame_pool = FRAME_POOL.lock();
-    let old_config = frame_pool.config();
     let frame_size = width * height + 2 * ((width / 2) * (height / 2));
-    if !frame_pool.is_active() {
-        init_frame_pool(&frame_pool, old_config, &new_caps, frame_size as u32)?;
+    let needs_reconfigure = if !frame_pool.is_active() {
+        true
     } else {
-        let _ = frame_pool.set_active(false);
-        let new_frame_pool = gst_video::VideoBufferPool::new();
-        init_frame_pool(&new_frame_pool, old_config, &new_caps, frame_size as u32)?;
-        *frame_pool = new_frame_pool;
+        match frame_pool.config().params() {
+            Some((caps, size, _, _)) => {
+                caps.as_ref() != Some(&new_caps) || size != frame_size as u32
+            }
+            None => true,
+        }
+    };
+    if needs_reconfigure {
+        let old_config = frame_pool.config();
+        if frame_pool.is_active() {
+            let _ = frame_pool.set_active(false);
+        }
+        init_frame_pool(&frame_pool, old_config, &new_caps, frame_size as u32)?;
     }
 
     let buffer = match frame_pool.acquire_buffer(None) {
@@ -846,6 +1459,7 @@ fn process_frame<'local>(
     Ok(())
 }
 
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeProcessFrame<'local>(
@@ -862,6 +1476,7 @@ pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeProcessFrame<
     }
 }
 
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_org_fcast_android_sender_MainActivity_nativeQrScanResult<'local>(

@@ -31,6 +31,7 @@ fn run(ui_weak: slint::Weak<MainWindow>) {
             .upgrade_in_event_loop(|ui| {
                 ui.global::<Bridge>()
                     .set_waiting_state(WaitingState::Receiving);
+                ui.global::<Bridge>().set_graph(slint::Image::default());
             })
             .unwrap();
 

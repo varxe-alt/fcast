@@ -29,12 +29,59 @@ endif
 GSTREAMER_NDK_BUILD_PATH  := $(GSTREAMER_ROOT)/share/gst-android/ndk-build/
 include $(GSTREAMER_NDK_BUILD_PATH)/plugins.mk
 
-GSTREAMER_PLUGINS_CORE_CUSTOM := coreelements app videorate videoconvertscale videofilter videoparsersbad
-GSTREAMER_PLUGINS_NET_CUSTOM := tcp rtpmanager udp srtp dtls nice webrtc rtp rsrtp
-GSTREAMER_PLUGINS_CODECS_CUSTOM := vpx
-GSTREAMER_PLUGINS         := $(GSTREAMER_PLUGINS_CORE_CUSTOM) $(GSTREAMER_PLUGINS_CODECS_CUSTOM) $(GSTREAMER_PLUGINS_NET_CUSTOM)
+GSTREAMER_PLUGINS := \
+    coreelements \
+    app \
+    audioconvert \
+    audiomixer \
+    audiorate \
+    audioresample \
+    audiotestsrc \
+    compositor \
+    gio \
+    rawparse \
+    typefindfunctions \
+    videoconvertscale \
+    videorate \
+    videotestsrc \
+    volume \
+    videofilter \
+    deinterlace \
+    videobox \
+    videocrop \
+    videomixer \
+    playback \
+    uriplaylistbin \
+    tcp \
+    rtsp \
+    rtp \
+    rtpmanager \
+    udp \
+    dtls \
+    srtp \
+    webrtc \
+    nice \
+    rsrtp \
+    rsrtsp \
+    rswebrtc
 
-GSTREAMER_EXTRA_DEPS      := gstreamer-video-1.0 glib-2.0 gstreamer-app-1.0 gstreamer-base-1.0 gstreamer-webrtc-1.0 gstreamer-rtp-1.0
+GSTREAMER_EXTRA_DEPS := \
+    glib-2.0 \
+    gobject-2.0 \
+    gstreamer-1.0 \
+    gstreamer-base-1.0 \
+    gstreamer-video-1.0 \
+    gstreamer-audio-1.0 \
+    gstreamer-player-1.0 \
+    gstreamer-sdp-1.0 \
+    gstreamer-app-1.0 \
+    gstreamer-webrtc-1.0 \
+    gstreamer-rtp-1.0 \
+    gio-2.0 \
+    gmodule-2.0
+
+GSTREAMER_INCLUDE_FONTS := yes
+GSTREAMER_INCLUDE_CA_CERTIFICATES := yes
 
 G_IO_MODULES = openssl
 

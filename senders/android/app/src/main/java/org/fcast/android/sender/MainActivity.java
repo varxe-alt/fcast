@@ -35,6 +35,8 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.journeyapps.barcodescanner.ScanOptions;
 
 import org.freedesktop.gstreamer.GStreamer;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -224,6 +226,7 @@ public class MainActivity extends NativeActivity implements DisplayManager.Displ
     private Handler glHandler;
     private DisplayManager displayManager;
     private final ReentrantLock captureLock = new ReentrantLock();
+    private final AtomicBoolean graphSmokeSequenceRan = new AtomicBoolean(false);
     private int userMaxWidth = 1920;
     private int userMaxHeight = 1080;
     private int userMaxFps = 30;
@@ -310,6 +313,8 @@ public class MainActivity extends NativeActivity implements DisplayManager.Displ
 
         displayManager = (DisplayManager)getSystemService(Context.DISPLAY_SERVICE);
         displayManager.registerDisplayListener(this, new Handler(getMainLooper()));
+        logGraphInfo("onCreate");
+        runGraphSmokeSequence();
     }
 
     private static final String vertexShader = """
@@ -812,6 +817,7 @@ public class MainActivity extends NativeActivity implements DisplayManager.Displ
         mediaProjection.registerCallback(projectionCallback, null);
         glHandler.post(() -> setupGles(new Dimensions(userMaxWidth, userMaxHeight), null));
         nativeCaptureStarted();
+        logGraphInfo("captureStarted");
     }
 
     @Override
@@ -844,7 +850,254 @@ public class MainActivity extends NativeActivity implements DisplayManager.Displ
         }
     }
 
+    public static final class GraphCommandResponse {
+        public final boolean success;
+        public final String error;
+        public final JSONObject info;
+        public final JSONObject raw;
+
+        private GraphCommandResponse(boolean success, String error, JSONObject info, JSONObject raw) {
+            this.success = success;
+            this.error = error;
+            this.info = info;
+            this.raw = raw;
+        }
+
+        public static GraphCommandResponse success(JSONObject info, JSONObject raw) {
+            return new GraphCommandResponse(true, null, info, raw);
+        }
+
+        public static GraphCommandResponse error(String error, JSONObject raw) {
+            return new GraphCommandResponse(false, error, null, raw);
+        }
+    }
+
+    public GraphCommandResponse graphCommand(String payloadJson) {
+        String responseJson = nativeGraphCommand(payloadJson == null ? "" : payloadJson);
+        return parseGraphCommandResponse(responseJson);
+    }
+
+    public GraphCommandResponse graphCommand(String action, JSONObject params) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put(action, params == null ? new JSONObject() : params);
+            return graphCommand(payload);
+        } catch (JSONException e) {
+            return GraphCommandResponse.error("Invalid graph command payload: " + e.getMessage(), null);
+        }
+    }
+
+    public GraphCommandResponse graphCommand(JSONObject payload) {
+        return graphCommand(payload == null ? "" : payload.toString());
+    }
+
+    private void logGraphInfo(String phase) {
+        GraphCommandResponse response = graphCommand("getinfo", new JSONObject());
+        if (!response.success) {
+            Log.w(
+                    TAG,
+                    "Graph getinfo failed phase=" + phase + " error=" + response.error +
+                            " raw=" + (response.raw == null ? "null" : response.raw.toString())
+            );
+            return;
+        }
+
+        JSONObject info = response.info;
+        JSONObject nodes = info == null ? null : info.optJSONObject("nodes");
+        int nodeCount = nodes == null ? 0 : nodes.length();
+        Log.i(TAG, "Graph getinfo phase=" + phase + " nodes=" + nodeCount);
+    }
+
+    private void runGraphSmokeSequence() {
+        if (!graphSmokeSequenceRan.compareAndSet(false, true)) {
+            return;
+        }
+
+        String suffix = String.valueOf(System.currentTimeMillis());
+        String sourceId = "java-smoke-videogen-" + suffix;
+        String mixerId = "java-smoke-mixer-" + suffix;
+        String linkId = "java-smoke-link-" + suffix;
+
+        boolean sourceCreated = false;
+        boolean mixerCreated = false;
+        try {
+            JSONObject createVideoGeneratorParams = new JSONObject();
+            createVideoGeneratorParams.put("id", sourceId);
+            GraphCommandResponse createVideoGeneratorResponse =
+                    graphCommand("createvideogenerator", createVideoGeneratorParams);
+            if (!createVideoGeneratorResponse.success) {
+                Log.w(
+                        TAG,
+                        "Graph smoke createvideogenerator failed id=" + sourceId +
+                                " error=" + createVideoGeneratorResponse.error
+                );
+                return;
+            }
+            sourceCreated = true;
+
+            JSONObject createMixerParams = new JSONObject();
+            createMixerParams.put("id", mixerId);
+            createMixerParams.put("audio", false);
+            createMixerParams.put("video", true);
+            GraphCommandResponse createMixerResponse = graphCommand("createmixer", createMixerParams);
+            if (!createMixerResponse.success) {
+                Log.w(
+                        TAG,
+                        "Graph smoke createmixer failed id=" + mixerId + " error=" + createMixerResponse.error
+                );
+                return;
+            }
+            mixerCreated = true;
+
+            JSONObject connectParams = new JSONObject();
+            connectParams.put("link_id", linkId);
+            connectParams.put("src_id", sourceId);
+            connectParams.put("sink_id", mixerId);
+            connectParams.put("audio", false);
+            connectParams.put("video", true);
+            GraphCommandResponse connectResponse = graphCommand("connect", connectParams);
+            if (!connectResponse.success) {
+                Log.w(
+                        TAG,
+                        "Graph smoke connect failed link=" + linkId + " error=" + connectResponse.error
+                );
+                return;
+            }
+
+            JSONObject startMixerParams = new JSONObject();
+            startMixerParams.put("id", mixerId);
+            GraphCommandResponse startMixerResponse = graphCommand("start", startMixerParams);
+            if (!startMixerResponse.success) {
+                Log.w(
+                        TAG,
+                        "Graph smoke start failed id=" + mixerId + " error=" + startMixerResponse.error
+                );
+                return;
+            }
+
+            JSONObject startSourceParams = new JSONObject();
+            startSourceParams.put("id", sourceId);
+            GraphCommandResponse startSourceResponse = graphCommand("start", startSourceParams);
+            if (!startSourceResponse.success) {
+                Log.w(
+                        TAG,
+                        "Graph smoke start failed id=" + sourceId + " error=" + startSourceResponse.error
+                );
+                return;
+            }
+
+            GraphCommandResponse infoResponse = graphCommand("getinfo", new JSONObject());
+            if (!infoResponse.success || infoResponse.info == null) {
+                Log.w(
+                        TAG,
+                        "Graph smoke getinfo failed after graph setup source=" + sourceId +
+                                " mixer=" + mixerId +
+                                " error=" + infoResponse.error
+                );
+                return;
+            }
+
+            JSONObject nodes = infoResponse.info.optJSONObject("nodes");
+            int nodeCount = nodes == null ? 0 : nodes.length();
+            boolean sourceFound = nodes != null && nodes.has(sourceId);
+            boolean mixerFound = nodes != null && nodes.has(mixerId);
+            boolean slotFound = false;
+            if (mixerFound) {
+                JSONObject mixerInfoWrapper = nodes.optJSONObject(mixerId);
+                JSONObject mixerInfo = mixerInfoWrapper == null ? null : mixerInfoWrapper.optJSONObject("mixer");
+                JSONObject slots = mixerInfo == null ? null : mixerInfo.optJSONObject("slots");
+                slotFound = slots != null && slots.has(linkId);
+            }
+
+            Log.i(
+                    TAG,
+                    "Graph smoke mini-graph source=" + sourceId +
+                            " mixer=" + mixerId +
+                            " link=" + linkId +
+                            " sourceFound=" + sourceFound +
+                            " mixerFound=" + mixerFound +
+                            " slotFound=" + slotFound +
+                            " nodes=" + nodeCount
+            );
+        } catch (JSONException e) {
+            Log.e(TAG, "Graph smoke sequence JSON failure", e);
+        } finally {
+            if (sourceCreated) {
+                try {
+                    JSONObject removeSourceParams = new JSONObject();
+                    removeSourceParams.put("id", sourceId);
+                    GraphCommandResponse removeSourceResponse = graphCommand("remove", removeSourceParams);
+                    if (!removeSourceResponse.success) {
+                        Log.w(
+                                TAG,
+                                "Graph smoke remove failed id=" + sourceId + " error=" + removeSourceResponse.error
+                        );
+                    }
+                } catch (JSONException e) {
+                    Log.e(TAG, "Graph smoke cleanup source JSON failure", e);
+                }
+            }
+            if (mixerCreated) {
+                try {
+                    JSONObject removeMixerParams = new JSONObject();
+                    removeMixerParams.put("id", mixerId);
+                    GraphCommandResponse removeMixerResponse = graphCommand("remove", removeMixerParams);
+                    if (!removeMixerResponse.success) {
+                        Log.w(
+                                TAG,
+                                "Graph smoke remove failed id=" + mixerId + " error=" + removeMixerResponse.error
+                        );
+                    }
+                } catch (JSONException e) {
+                    Log.e(TAG, "Graph smoke cleanup mixer JSON failure", e);
+                }
+            }
+        }
+    }
+
+    private GraphCommandResponse parseGraphCommandResponse(String responseJson) {
+        if (responseJson == null || responseJson.isEmpty()) {
+            return GraphCommandResponse.error("Empty graph command response", null);
+        }
+
+        try {
+            JSONObject root = new JSONObject(responseJson);
+            Object result = root.opt("result");
+            if (result instanceof String) {
+                String resultName = (String) result;
+                if ("success".equals(resultName)) {
+                    return GraphCommandResponse.success(null, root);
+                }
+                return GraphCommandResponse.error(
+                        "Unexpected graph result string: " + resultName,
+                        root
+                );
+            }
+
+            if (result instanceof JSONObject) {
+                JSONObject resultObject = (JSONObject) result;
+                if (resultObject.has("error")) {
+                    return GraphCommandResponse.error(
+                            resultObject.optString("error", "Unknown graph command error"),
+                            root
+                    );
+                }
+                if (resultObject.has("info")) {
+                    JSONObject info = resultObject.optJSONObject("info");
+                    return GraphCommandResponse.success(info, root);
+                }
+            }
+
+            return GraphCommandResponse.error("Unsupported graph result shape", root);
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to parse graph command response: " + responseJson, e);
+            return GraphCommandResponse.error("Invalid graph response JSON: " + e.getMessage(), null);
+        }
+    }
+
     native void nativeProcessFrame(int width, int height, ByteBuffer bufferY, ByteBuffer bufferU, ByteBuffer bufferV);
+
+    native String nativeGraphCommand(String payloadJson);
 
     native void nativeCaptureStarted();
 
