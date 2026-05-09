@@ -16,6 +16,13 @@ export enum AppState {
     Casting,
 }
 
+export enum Panel {
+    none,
+    settings,
+    debug,
+    codec-test,
+}
+
 export struct QuickAction {
     id:      string,
     title:   string,
@@ -42,6 +49,7 @@ export global Bridge {
         // "Device 1", "Device 2",
     ];
     in-out property <AppState> app-state: AppState.Disconnected;
+    in-out property <Panel>    active-panel: Panel.none;
     in-out property <bool>     show-debug: false;
     in-out property <string>   test-status: "";
     in property <[QuickAction]> quick-actions: [];
